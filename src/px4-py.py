@@ -1,6 +1,7 @@
 import rclpy
 import numpy as np
 import json
+import math
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleAttitudeSetpoint
@@ -21,7 +22,8 @@ class OffboardControl(Node):
         self.routine=0
         self.pose=0
         self.tic=0
-        self.path =[]
+        self.path =0
+        self.path_points=[]
         self.path_index = -1
 
         # Configure QoS profile for publishing and subscribing
@@ -153,6 +155,13 @@ class OffboardControl(Node):
 
             return []
 
+    def dist(self,t1,t2):
+        return math.dist(t1, t2)
+    
+    def vlp_to_array(self,vlp:VehicleLocalPosition):
+        print(vlp)
+        return [vlp.x,vlp.y,vlp.z]
+
 
     def timer_callback(self) -> None:
         """Callback function for the timer."""
@@ -172,10 +181,10 @@ class OffboardControl(Node):
             
             # print("z position: ",self.vehicle_local_position.z)
             if self.vehicle_local_position.z < self.takeoff_height*0.95:
-                print
+                #da qui decido cosa fare
                 self.ready=1
-                self.routine=1
-                self.path=0
+                self.routine=0
+                self.path=1
             
         
         # if self.ok:
@@ -185,13 +194,23 @@ class OffboardControl(Node):
         if self.path:
             
             if self.path_index==-2:
-                self.path=0#path vuota o error, disattivo
+                self.path=0 #path vuota o error, disattivo
 
-            if self.path_index==-1:
-                path=self.read_path()
-                print(path)
+            if self.path_index==-1: #non acora impostato
+                self.path_points=self.read_path()
+                print(self.path_points)
+                if self.path_points:
+                    #non vuota
+                    self.path_index=0
+                else:
+                    self.path_index=-2
                #  if path.isem    
-
+            if self.path_index >=0:
+                self.publish_position_setpoint(self.path_points[self.path_index][0],self.path_points[self.path_index][1],-self.path_points[self.path_index][2])
+                dist= self.dist(self.path_points[self.path_index],self.vehicle_local_position)
+                print("dist: ",dist)
+                if dist < 0.2:
+                    self.path_index+=1
             
         if self.routine:
             self.traj_x = self.radius * np.cos(self.theta)
