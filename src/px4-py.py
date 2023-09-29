@@ -25,6 +25,8 @@ class OffboardControl(Node):
         self.path =0
         self.path_points=[]
         self.path_index = -1
+        self.spin=0
+        self.base = [0.0,0.0,0.0]
 
         # Configure QoS profile for publishing and subscribing
         qos_profile = QoSProfile(
@@ -100,17 +102,32 @@ class OffboardControl(Node):
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.offboard_control_mode_publisher.publish(msg)
 
-    def publish_position_setpoint(self, x: float, y: float, z: float, yaw: float=0.0):
+    def publish_position_setpoint(self, x: float, y: float, z: float, yaw: float=0.0, yawspeed: float=1.0):
         """Publish the trajectory setpoint."""
+        
+        """
+        # NED local world frame
+        float32[3] position # in meters
+        float32[3] velocity # in meters/second
+        float32[3] acceleration # in meters/second^2
+        float32[3] jerk # in meters/second^3 (for logging only)
+
+        float32 yaw # euler angle of desired attitude in radians -PI..+PI
+        float32 yawspeed # angular velocity around NED frame z-axis in radians/second
+        """
+        
+        
+        
         msg = TrajectorySetpoint()
         msg.position = [x, y, z]
         msg.yaw = 1.57079  # (90 degree)
         msg.yaw = 0.0
         # msg.yaw = self.tic*1.0
-        msg.yaw = np.arctan2(y,x) + 1.570
+        msg.yaw = yaw
+        msg.yawspeed = yawspeed
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.trajectory_setpoint_publisher.publish(msg)
-        self.get_logger().info(f"Publishing position setpoints {[x, y, z]}")
+        #self.get_logger().info(f"Publishing position setpoints {[x, y, z]}")
         
 
 
@@ -158,9 +175,10 @@ class OffboardControl(Node):
     def dist(self,t1,t2):
         return math.dist(t1, t2)
     
-    def vlp_to_array(self,vlp:VehicleLocalPosition):
-        print(vlp)
+    def vlp_to_array(self, vlp:VehicleLocalPosition):
+        #print(vlp)
         return [vlp.x,vlp.y,vlp.z]
+        #return [0.0,0.0,-5.0]
 
 
     def timer_callback(self) -> None:
@@ -170,21 +188,25 @@ class OffboardControl(Node):
 
         if self.offboard_setpoint_counter == 10:
             self.engage_offboard_mode()
+            self.base = [self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height ]
             self.arm()
             self.ready=0
-            self.routine = 1
+            # self.routine = 0
 
         #if self.vehicle_local_position.z > self.takeoff_height and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
         if not self.ready and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
             
-            self.publish_position_setpoint(0.0,0.0,self.takeoff_height)
+            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height)
             
             # print("z position: ",self.vehicle_local_position.z)
             if self.vehicle_local_position.z < self.takeoff_height*0.95:
                 #da qui decido cosa fare
                 self.ready=1
                 self.routine=0
-                self.path=1
+                self.path=0
+                self.spin=1
+
+                print("start")
             
         
         # if self.ok:
@@ -198,7 +220,7 @@ class OffboardControl(Node):
 
             if self.path_index==-1: #non acora impostato
                 self.path_points=self.read_path()
-                print(self.path_points)
+                #print(self.path_points)
                 if self.path_points:
                     #non vuota
                     self.path_index=0
@@ -206,12 +228,19 @@ class OffboardControl(Node):
                     self.path_index=-2
                #  if path.isem    
             if self.path_index >=0:
-                self.publish_position_setpoint(self.path_points[self.path_index][0],self.path_points[self.path_index][1],-self.path_points[self.path_index][2])
-                dist= self.dist(self.path_points[self.path_index],self.vehicle_local_position)
+                self.publish_position_setpoint(self.path_points[self.path_index][0],self.path_points[self.path_index][1],self.path_points[self.path_index][2])
+                dist= self.dist(self.path_points[self.path_index],self.vlp_to_array(self.vehicle_local_position))
                 print("dist: ",dist)
                 if dist < 0.2:
                     self.path_index+=1
-            
+                    if self.path_index==len(self.path_points):
+                        self.path=0
+                        self.land()
+                        exit(0)
+        if self.spin:
+            self.publish_position_setpoint(self.base[0],self.base[1],self.base[2],self.tic/5)
+            print("yaw: ",self.tic/5)
+       			
         if self.routine:
             self.traj_x = self.radius * np.cos(self.theta)
             self.traj_y = self.radius * np.sin(self.theta)
@@ -224,7 +253,7 @@ class OffboardControl(Node):
             
             self.publish_position_setpoint(self.traj_x, self.traj_y, self.traj_z)
 
-            print("fatto ", int(self.get_clock().now().nanoseconds / 1000000))
+            #print("fatto ", int(self.get_clock().now().nanoseconds / 1000000))
             # print("current posistion ", self.vehicle_local_position.x)
             # print("current posistion ", self.vehicle_local_position.y)
             # print("current posistion ", self.vehicle_local_position.z)
