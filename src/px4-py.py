@@ -5,7 +5,13 @@ import math
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleAttitudeSetpoint
+from commander_msg.msg import CommanderAll
 
+import config
+import random
+import logging
+
+logging.basicConfig(level=config.log)
 
 class OffboardControl(Node):
     """Node for controlling a vehicle in offboard mode."""
@@ -14,20 +20,24 @@ class OffboardControl(Node):
         super().__init__('offboard_control_takeoff_and_land')
         self.test=0
         self.procedure_time=0
-        self.dt = 0.01
-        self.theta = 0.0
-        self.radius = 2.0
-        self.omega = 2
+        self.dt = config.dt
+        self.theta = config.theta
+        self.radius = config.radius
+        self.omega = config.omega
+        
         self.ready = 0
-        self.routine=0
-        self.pose=0
+        self.routine=config.routine
+        self.pose=config.pose
         self.tic=0
-        self.path =0
-        self.path_points=[]
+        self.path =config.path
+        self.path_points=config.path_points
         self.path_index = -1
         self.spin=0
         self.base = [0.0,0.0,-1.0]
         self.updown=0
+        self.takeoff_height = config.takeoff_height
+        
+        self.gui = config.gui
 
         # Configure QoS profile for publishing and subscribing
         qos_profile = QoSProfile(
@@ -44,8 +54,11 @@ class OffboardControl(Node):
             TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos_profile)
         self.vehicle_command_publisher = self.create_publisher(
             VehicleCommand, '/fmu/in/vehicle_command', qos_profile)
+        
+        self.commander_publisher = self.create_publisher(
+            CommanderAll, '/commander', qos_profile)
 
-
+            
         # Create subscribers
         self.vehicle_local_position_subscriber = self.create_subscription(
             VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_local_position_callback, qos_profile)
@@ -56,7 +69,7 @@ class OffboardControl(Node):
         self.offboard_setpoint_counter = 0
         self.vehicle_local_position = VehicleLocalPosition()
         self.vehicle_status = VehicleStatus()
-        self.takeoff_height = -1.0
+        
 
         # Create a timer to publish control commands
         self.timer = self.create_timer(0.1, self.timer_callback)
@@ -174,19 +187,48 @@ class OffboardControl(Node):
             return []
 
     def dist(self,t1,t2):
-        print("p1: ",t1)
-        print("p2: ",t2)
+        # print("p1: ",t1)
+        # print("p2: ",t2)
         return math.dist(t1, t2)
     
     def vlp_to_array(self, vlp:VehicleLocalPosition):
         #print(vlp)
         return [vlp.x,vlp.y,vlp.z]
         #return [0.0,0.0,-5.0]
+    def publish_commander(self):
+        """published commander params for gui"""
+        msg = CommanderAll()
+        
+        msg.dt=self.dt
+        msg.theta=self.theta
+        msg.radius=self.radius
+        msg.omega=self.omega
+        
+        msg.ready=self.ready
+        msg.base= self.base
+        msg.takeoff_height=self.takeoff_height
+        
+        msg.routine=self.routine
+        msg.pose=self.pose
+        msg.tic=self.tic
+        msg.path=self.path
+        msg.spin=self.spin
+        msg.updown=self.updown
+        
+        msg.gui = self.gui
+        msg.path_index=self.path_index
+        msg.path_points=self.path_points
+                
+        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        msg.testint=random.randint(0,50)
+        msg.testbool=False
+        self.commander_publisher.publish(msg)
 
 
     def timer_callback(self) -> None:
         """Callback function for the timer."""
         self.publish_offboard_control_heartbeat_signal()
+        self.publish_commander()
         self.tic+=1
 
         if self.offboard_setpoint_counter == 10:
@@ -240,7 +282,7 @@ class OffboardControl(Node):
                     self.path_index=-2
                #  if path.isem    
             if self.path_index >=0:
-                print("goto; ", self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
+                #print("goto; ", self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
                 self.publish_position_setpoint(self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
                 dist= self.dist([self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2]] ,self.vlp_to_array(self.vehicle_local_position))
                 print("dist: ",dist)
