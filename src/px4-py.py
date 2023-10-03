@@ -16,8 +16,8 @@ class OffboardControl(Node):
         self.procedure_time=0
         self.dt = 0.01
         self.theta = 0.0
-        self.radius = 5.0
-        self.omega = 5
+        self.radius = 2.0
+        self.omega = 2
         self.ready = 0
         self.routine=0
         self.pose=0
@@ -26,7 +26,8 @@ class OffboardControl(Node):
         self.path_points=[]
         self.path_index = -1
         self.spin=0
-        self.base = [0.0,0.0,0.0]
+        self.base = [0.0,0.0,-1.0]
+        self.updown=0
 
         # Configure QoS profile for publishing and subscribing
         qos_profile = QoSProfile(
@@ -55,7 +56,7 @@ class OffboardControl(Node):
         self.offboard_setpoint_counter = 0
         self.vehicle_local_position = VehicleLocalPosition()
         self.vehicle_status = VehicleStatus()
-        self.takeoff_height = -3.0
+        self.takeoff_height = -1.0
 
         # Create a timer to publish control commands
         self.timer = self.create_timer(0.1, self.timer_callback)
@@ -173,6 +174,8 @@ class OffboardControl(Node):
             return []
 
     def dist(self,t1,t2):
+        print("p1: ",t1)
+        print("p2: ",t2)
         return math.dist(t1, t2)
     
     def vlp_to_array(self, vlp:VehicleLocalPosition):
@@ -188,7 +191,7 @@ class OffboardControl(Node):
 
         if self.offboard_setpoint_counter == 10:
             self.engage_offboard_mode()
-            self.base = [self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height ]
+            self.base = [self.vehicle_local_position.x,self.vehicle_local_position.y, self.vehicle_local_position.z ]
             self.arm()
             self.ready=0
             # self.routine = 0
@@ -202,9 +205,12 @@ class OffboardControl(Node):
             if self.vehicle_local_position.z < self.takeoff_height*0.95:
                 #da qui decido cosa fare
                 self.ready=1
-                self.routine=0
-                self.path=0
-                self.spin=1
+                
+                
+                self.routine=0  
+                self.path=1
+                self.spin=0
+                self.updown =0
 
                 print("start")
             
@@ -212,6 +218,12 @@ class OffboardControl(Node):
         # if self.ok:
         #     self.ok=0
         #     self.pose=1
+        
+        if self.updown:
+            self.land()
+            self.disarm()
+        
+        
         
         if self.path:
             
@@ -228,8 +240,9 @@ class OffboardControl(Node):
                     self.path_index=-2
                #  if path.isem    
             if self.path_index >=0:
-                self.publish_position_setpoint(self.path_points[self.path_index][0],self.path_points[self.path_index][1],self.path_points[self.path_index][2])
-                dist= self.dist(self.path_points[self.path_index],self.vlp_to_array(self.vehicle_local_position))
+                print("goto; ", self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
+                self.publish_position_setpoint(self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
+                dist= self.dist([self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2]] ,self.vlp_to_array(self.vehicle_local_position))
                 print("dist: ",dist)
                 if dist < 0.2:
                     self.path_index+=1
@@ -238,8 +251,8 @@ class OffboardControl(Node):
                         self.land()
                         exit(0)
         if self.spin:
-            self.publish_position_setpoint(self.base[0],self.base[1],self.base[2],self.tic/5)
-            print("yaw: ",self.tic/5)
+            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z,self.vehicle_local_position.heading+0.01)
+            print("yaw: ",self.vehicle_local_position.heading+0.05)
        			
         if self.routine:
             self.traj_x = self.radius * np.cos(self.theta)
@@ -247,7 +260,7 @@ class OffboardControl(Node):
             # self.traj_x = 0.0
             # self.traj_y = 0.0
             #self.traj_z = -5.0 +  np.sin(self.theta*1.7)
-            self.traj_z = -3.0
+            self.traj_z = self.takeoff_height
 
             self.theta = self.theta + self.omega * self.dt
             
