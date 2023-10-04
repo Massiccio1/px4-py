@@ -86,14 +86,14 @@ class GUI(Node):
                 [sg.Text()],
                 [sg.Column([[sg.Quit(button_color=(sg.theme_button_color()[1], sg.theme_button_color()[0]), focus=True)]], justification='r')
             ]]) 
-        essential=[sg.Frame('controller',[
+        essential=sg.Frame('controller',[
                 [sg.Text("UNKNOWN", key="arm_text"),sg.Text("comamnder: DISCONNECTED", key="commander_status")],
                 [sg.Button('ARM', key="arm_button"),sg.Button('DISARM', key="disarm_button")],
                 [sg.Button('TAKEOFF', key="takeoff_button"),sg.Button('LAND', key="land_button")],
                 [sg.Text()],
                 [sg.Radio('routine', 1, key= "rd_routine"),sg.Radio('path',  1, key = "rd_path"),sg.Radio('spin', 1, key = "rd_spin"),sg.Radio('updown', 1, key = "rd_updown"),sg.Radio('None', 1, default=True)],
                 [sg.Button('Confirm', key="mode_button")]
-                ])]
+                ])
         pad=sg.Frame('Output data',[
                 [sg.Text("UNKNOWN", key="arm_text"),sg.Text("comamnder: DISCONNECTED", key="commander_status")],
                 [sg.Button('ARM', key="arm_button"),sg.Button('DISARM', key="disarm_button")],
@@ -106,9 +106,10 @@ class GUI(Node):
                 [sg.Column([[sg.Quit(button_color=(sg.theme_button_color()[1], sg.theme_button_color()[0]), focus=True)]], justification='r')
             ]])
         layout = [
-            [sg.Frame('trl',[essential])
+            [sg.Text('My one-shot window.')],      
+            [sg.InputText()],      
+            [sg.Submit(), sg.Cancel()]
             ]
-        ]
 
         self.window = sg.Window('Commander GUI', layout)
         

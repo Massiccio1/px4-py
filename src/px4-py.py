@@ -184,6 +184,8 @@ class OffboardControl(Node):
         msg.yaw = 1.57079  # (90 degree)
         msg.yaw = 0.0
         # msg.yaw = self.tic*1.0
+        if yaw==None:
+            yaw = vehicle_local_position.x
         msg.yaw = yaw
         #msg.yawspeed = yawspeed
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
