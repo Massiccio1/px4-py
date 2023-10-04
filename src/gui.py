@@ -72,35 +72,39 @@ class GUI(Node):
         #     adad=0
         
         
-        rtl=sg.Frame('Input data data',[
-                [sg.Text('Robotics Remote Control')],
-                [sg.Text('Hold Down Button To Move')],
-                [sg.Text()],
-                [sg.Text('           '),sg.RealtimeButton(sg.SYMBOL_UP, key='-FORWARD-')],
-                [sg.RealtimeButton(sg.SYMBOL_LEFT, key='-LEFT-'),sg.Text(size=(10,1), key='-STATUS-', justification='c', pad=(0,0)),sg.RealtimeButton(sg.SYMBOL_RIGHT, key='-RIGHT-')],
-                [sg.Text('           '),sg.RealtimeButton(sg.SYMBOL_DOWN, key='-DOWN-')],
-                [sg.Text()],
-                [sg.Column([[sg.Quit(button_color=(sg.theme_button_color()[1], sg.theme_button_color()[0]), focus=True)]], justification='r')]
-                ])
-        essential=sg.Frame('controller',[
+        rtl=[
+            [sg.Text('Robotics Remote Control')],
+            [sg.Text('Hold Down Button To Move')],
+            [sg.Text()],
+            [sg.Text('           '),sg.RealtimeButton(sg.SYMBOL_UP, key='-FORWARD-')],
+            [sg.RealtimeButton(sg.SYMBOL_LEFT, key='-LEFT-'),sg.Text(size=(10,1), key='-STATUS-', justification='c', pad=(0,0)),sg.RealtimeButton(sg.SYMBOL_RIGHT, key='-RIGHT-')],
+            [sg.Text('           '),sg.RealtimeButton(sg.SYMBOL_DOWN, key='-DOWN-')],
+            [sg.Text()],
+            [sg.Column([[sg.Quit(button_color=(sg.theme_button_color()[1], sg.theme_button_color()[0]), focus=True)]], justification='r')]
+        ]
+        
+        essential=[
                 [sg.Text("drone: UNKNOWN", key="arm_text"),sg.Text("commander: DISCONNECTED", key="commander_status")],
                 [sg.Button('ARM', key="arm_button"),sg.Button('DISARM', key="disarm_button")],
                 [sg.Button('TAKEOFF', key="takeoff_button"),sg.Button('LAND', key="land_button")],
                 [sg.Text()],
                 [sg.Radio('routine', 1, key= "rd_routine"),sg.Radio('path',  1, key = "rd_path"),sg.Radio('spin', 1, key = "rd_spin"),sg.Radio('updown', 1, key = "rd_updown"),sg.Radio('None', 1, default=True)],
                 [sg.Button('Confirm', key="mode_button")]
-                ])
+        ]
+        
         test = [[sg.Text('My one-shot window.')],      
                  [sg.InputText()],      
-                 [sg.Submit(), sg.Cancel()]] 
+                 [sg.Submit(), sg.Cancel()]
+        ] 
+        
+        text = [
+            [sg.Text('Text1'),sg.Text('Text2'),sg.Text('Text3')]
+        ]
+        
+        
         
         layout = [
-                [sg.TabGroup([[sg.Tab('Tab1',[[sg.T(s=(15,2))]]), sg.Tab('Tab2', rtl)]]),
-                sg.Frame("", [
-                    [essential],      
-                    [rtl]
-                    ])
-                ]
+                [sg.TabGroup([[sg.Tab('Tab1',test), sg.Tab('Tab2', rtl)]]),sg.Frame('Frame', essential)    ]
                 
             ]
 
