@@ -5,7 +5,7 @@ import math
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleAttitudeSetpoint
-from commander_msg.msg import CommanderAll
+from commander_msg.msg import CommanderAll, CommanderArm, CommanderMode, CommanderAction
 
 import config
 import random
@@ -20,21 +20,24 @@ class OffboardControl(Node):
         super().__init__('offboard_control_takeoff_and_land')
         self.test=0
         self.procedure_time=0
+        
         self.dt = config.dt
         self.theta = config.theta
         self.radius = config.radius
         self.omega = config.omega
         
-        self.ready = 0
-        self.routine=config.routine
-        self.pose=config.pose
-        self.tic=0
-        self.path =config.path
+        self.ready = False
+        self.routine=False
+        self.updown=False
+        self.path =False
+        self.spin=False
+        
         self.path_points=config.path_points
+        self.pose=0
+        self.tic=0        
+        self.base = [0.0,0.0,-1.0] 
         self.path_index = -1
-        self.spin=0
-        self.base = [0.0,0.0,-1.0]
-        self.updown=0
+
         self.takeoff_height = config.takeoff_height
         
         self.gui = config.gui
@@ -55,8 +58,10 @@ class OffboardControl(Node):
         self.vehicle_command_publisher = self.create_publisher(
             VehicleCommand, '/fmu/in/vehicle_command', qos_profile)
         
-        self.commander_publisher = self.create_publisher(
-            CommanderAll, '/commander', qos_profile)
+        self.com_pub_all = self.create_publisher(
+            CommanderAll, '/com/out/all', qos_profile)
+        self.com_pub_mode = self.create_publisher(
+            CommanderMode, '/com/out/mode', qos_profile)
 
             
         # Create subscribers
@@ -64,6 +69,13 @@ class OffboardControl(Node):
             VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_local_position_callback, qos_profile)
         self.vehicle_status_subscriber = self.create_subscription(
             VehicleStatus, '/fmu/out/vehicle_status', self.vehicle_status_callback, qos_profile)
+        
+        self.commander_arm_sub = self.create_subscription(
+            CommanderArm, '/com/in/arm', self.commander_arm_callback, qos_profile)
+        self.commander_mode_sub = self.create_subscription(
+            CommanderMode, '/com/in/mode', self.commander_mode_callback, qos_profile)
+        self.commander_action_sub = self.create_subscription(
+            CommanderAction, '/com/in/action', self.commander_action_callback, qos_profile)
 
         # Initialize variables
         self.offboard_setpoint_counter = 0
@@ -73,6 +85,8 @@ class OffboardControl(Node):
 
         # Create a timer to publish control commands
         self.timer = self.create_timer(0.1, self.timer_callback)
+        
+        logging.debug("init complete")
 
     def vehicle_local_position_callback(self, vehicle_local_position):
         """Callback function for vehicle_local_position topic subscriber."""
@@ -103,7 +117,40 @@ class OffboardControl(Node):
     def land(self):
         """Switch to land mode."""
         self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_NAV_LAND)
-        self.get_logger().info("Switching to land mode")
+        
+    def commander_arm_callback(self,msg):
+        """comamnder arm"""
+        logging.info("arm from ros callback")
+        if msg.arm:
+            self.vehicle_start()
+        else:
+            self.disarm()
+        
+    def commander_mode_callback(self, msg):
+        """comamnder mode callback"""
+        logging.info("ros callback for mode")
+        if msg.ready == False:
+            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z)
+        
+        self.ready=msg.ready
+        self.routine = msg.routine
+        self.path=msg.path
+        self.spin=msg.spin
+        self.updown=msg.updown
+        
+    def commander_action_callback(self, action):
+        """comamnder action callback"""
+        logging.info("ros callback for action")
+        ops = {
+            "takeoff": self.takeoff,
+            "land": self.land
+        }
+  
+        operation = ops.get(action.action, self.action_error)
+        operation()
+        
+    def action_error(self):
+        logging.debug("you choose an invalid action")
 
     def publish_offboard_control_heartbeat_signal(self):
         """Publish the offboard control mode."""
@@ -116,7 +163,7 @@ class OffboardControl(Node):
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.offboard_control_mode_publisher.publish(msg)
 
-    def publish_position_setpoint(self, x: float, y: float, z: float, yaw: float=0.0, yawspeed: float=1.0):
+    def publish_position_setpoint(self, x: float, y: float, z: float, yaw=None):
         """Publish the trajectory setpoint."""
         
         """
@@ -129,8 +176,8 @@ class OffboardControl(Node):
         float32 yaw # euler angle of desired attitude in radians -PI..+PI
         float32 yawspeed # angular velocity around NED frame z-axis in radians/second
         """
-        
-        
+        if yaw==None:
+            yaw = self.find_yaw(x,y,self.vehicle_local_position.x,self.vehicle_local_position.y)
         
         msg = TrajectorySetpoint()
         msg.position = [x, y, z]
@@ -138,12 +185,13 @@ class OffboardControl(Node):
         msg.yaw = 0.0
         # msg.yaw = self.tic*1.0
         msg.yaw = yaw
-        msg.yawspeed = yawspeed
+        #msg.yawspeed = yawspeed
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.trajectory_setpoint_publisher.publish(msg)
         #self.get_logger().info(f"Publishing position setpoints {[x, y, z]}")
         
-
+    def find_yaw(self,x1,y1,x2,y2):
+        return -np.arctan2(x2-x1,y2-y1)-np.pi/2
 
     def publish_vehicle_command(self, command, **params) -> None:
         """Publish a vehicle command."""
@@ -186,6 +234,28 @@ class OffboardControl(Node):
 
             return []
 
+    def vehicle_start(self):
+        self.engage_offboard_mode()
+        self.base = [self.vehicle_local_position.x,self.vehicle_local_position.y, self.vehicle_local_position.z ]
+        self.arm()
+        self.ready=False
+    
+    def takeoff(self):
+        logging.info("taking off")
+        
+        self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height)
+
+        if self.vehicle_local_position.z < self.takeoff_height*0.95:
+            #da qui decido cosa fare
+            self.ready=True
+            
+            self.routine = config.routine
+            self.path= config.path
+            self.spin= config.spin
+            self.updown = config.updown
+
+
+
     def dist(self,t1,t2):
         # print("p1: ",t1)
         # print("p2: ",t2)
@@ -217,12 +287,12 @@ class OffboardControl(Node):
         
         msg.gui = self.gui
         msg.path_index=self.path_index
-        msg.path_points=self.path_points
+        #msg.path_points=self.path_points
                 
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         msg.testint=random.randint(0,50)
         msg.testbool=False
-        self.commander_publisher.publish(msg)
+        self.com_pub_all.publish(msg)
 
 
     def timer_callback(self) -> None:
@@ -231,43 +301,29 @@ class OffboardControl(Node):
         self.publish_commander()
         self.tic+=1
 
-        if self.offboard_setpoint_counter == 10:
-            self.engage_offboard_mode()
-            self.base = [self.vehicle_local_position.x,self.vehicle_local_position.y, self.vehicle_local_position.z ]
-            self.arm()
-            self.ready=0
+        if not self.gui and self.offboard_setpoint_counter == 10:
+            self.vehicle_start()
             # self.routine = 0
 
         #if self.vehicle_local_position.z > self.takeoff_height and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
-        if not self.ready and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
+        if not self.ready and not self.gui and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
             
-            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height)
             
             # print("z position: ",self.vehicle_local_position.z)
-            if self.vehicle_local_position.z < self.takeoff_height*0.95:
-                #da qui decido cosa fare
-                self.ready=1
-                
-                
-                self.routine=0  
-                self.path=1
-                self.spin=0
-                self.updown =0
-
-                print("start")
+            self.takeoff()
             
         
         # if self.ok:
         #     self.ok=0
         #     self.pose=1
         
-        if self.updown:
+        if self.ready and self.updown:
             self.land()
             self.disarm()
         
         
         
-        if self.path:
+        if self.ready and self.path:
             
             if self.path_index==-2:
                 self.path=0 #path vuota o error, disattivo
@@ -281,7 +337,7 @@ class OffboardControl(Node):
                 else:
                     self.path_index=-2
                #  if path.isem    
-            if self.path_index >=0:
+            if self.ready and self.path_index >=0:
                 #print("goto; ", self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
                 self.publish_position_setpoint(self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
                 dist= self.dist([self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2]] ,self.vlp_to_array(self.vehicle_local_position))
@@ -292,11 +348,11 @@ class OffboardControl(Node):
                         self.path=0
                         self.land()
                         exit(0)
-        if self.spin:
+        if self.ready and self.spin:
             self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z,self.vehicle_local_position.heading+0.01)
             print("yaw: ",self.vehicle_local_position.heading+0.05)
        			
-        if self.routine:
+        if self.ready and self.routine:
             self.traj_x = self.radius * np.cos(self.theta)
             self.traj_y = self.radius * np.sin(self.theta)
             # self.traj_x = 0.0

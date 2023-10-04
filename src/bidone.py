@@ -1,74 +1,102 @@
-#!/usr/bin/env python
-"""
-    Demo - Realtime Buttons
-
-    Realtime buttons provide a way for you to get a continuous stream of button
-    events for as long as a button is held down.
-
-    This demo is using a timeout to determine that a button has been released.
-    If your application doesn't care when a button is released and only needs to know
-    that it's being held down, then  you can remove the timeout on the window read call.
-
-    Note that your reaction latency will be the same as your timeout value.  In this demo
-    the timeout is 100, so there will be 100ms between releasing a button and your program detecting
-    this has happened.
-
-    Copyright 2021 PySimpleGUI
-"""
-
 import PySimpleGUI as sg
 
-def main():
-    # The Quit button is being placed in the bottom right corner and the colors are inverted, just for fun
-    
-    test="tes1231t"
-    layout = [[ 
-        sg.Frame('Output data',[[
-            sg.Text(test)],
-              [sg.Text('Hold Down Button To Move')],
-              [sg.Text()],
-              [sg.Text('           '),
-               sg.RealtimeButton(sg.SYMBOL_UP, key='-FORWARD-')],
-              [sg.RealtimeButton(sg.SYMBOL_LEFT, key='-LEFT-'),
-               sg.Text(size=(10,1), key='-STATUS-', justification='c', pad=(0,0)),
-               sg.RealtimeButton(sg.SYMBOL_RIGHT, key='-RIGHT-')],
-              [sg.Text('           '),
-               sg.RealtimeButton(sg.SYMBOL_DOWN, key='-DOWN-')],
-              [sg.Text()],
-              [sg.Column([[sg.Quit(button_color=(sg.theme_button_color()[1], sg.theme_button_color()[0]), focus=True)]], justification='r')
-        ]]),
-        sg.Frame('Input data data',[[
-            sg.Text('Robotics Remote Control')],
-              [sg.Text('Hold Down Button To Move')],
-              [sg.Text()],
-              [sg.Text('           '),
-               sg.RealtimeButton(sg.SYMBOL_UP, key='-FORWARD-')],
-              [sg.RealtimeButton(sg.SYMBOL_LEFT, key='-LEFT-'),
-               sg.Text(size=(10,1), key='-STATUS-', justification='c', pad=(0,0)),
-               sg.RealtimeButton(sg.SYMBOL_RIGHT, key='-RIGHT-')],
-              [sg.Text('           '),
-               sg.RealtimeButton(sg.SYMBOL_DOWN, key='-DOWN-')],
-              [sg.Text()],
-              [sg.Column([[sg.Quit(button_color=(sg.theme_button_color()[1], sg.theme_button_color()[0]), focus=True)]], justification='r')
-        ]]) 
-    ]]
+import rclpy
+import numpy as np
+import json
+import math
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
+from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleAttitudeSetpoint	
+from commander_msg.msg import CommanderAll
 
-    window = sg.Window('Robotics Remote Control', layout)
+"""
+    Demo - Element List
 
-    while True:
-        # This is the code that reads and updates your window
-        event, values = window.read(timeout=100)
-        if event in (sg.WIN_CLOSED, 'Quit'):
-            break
-        if event != sg.TIMEOUT_EVENT:
-            # if not a timeout event, then it's a button that's being held down
-            window['-STATUS-'].update(event)
-        else:
-            # A timeout signals that all buttons have been released so clear the status display
-            window['-STATUS-'].update('')
+    All 34 elements shown in 1 window as simply as possible.
 
-    window.close()
+    Copyright 2022 PySimpleGUI
+"""
 
-if __name__ == '__main__':
-    # sg.theme('Amber')
-    main()
+
+
+use_custom_titlebar = False
+
+def make_window(theme=None):
+    NAME_SIZE = 23
+
+    def name(name):
+        dots = NAME_SIZE-len(name)-2
+        return sg.Text(name + ' ' + '•'*dots, size=(NAME_SIZE,1), justification='r',pad=(0,0), font='Courier 10')
+
+    sg.theme(theme)
+
+    treedata = sg.TreeData()
+
+    treedata.Insert("", '_A_', 'Tree Item 1', [1234], )
+    treedata.Insert("", '_B_', 'B', [])
+    treedata.Insert("_A_", '_A1_', 'Sub Item 1', ['can', 'be', 'anything'], )
+
+    layout_l = [[name('Text'), sg.Text('Text')],
+                [name('Input'), sg.Input(s=15)],
+                [name('Multiline'), sg.Multiline(s=(15,2))],
+                [name('Output'), sg.Output(s=(15,2))],
+                [name('Combo'), sg.Combo(sg.theme_list(), default_value=sg.theme(), s=(15,22), enable_events=True, readonly=True, k='-COMBO-')],
+                [name('OptionMenu'), sg.OptionMenu(['OptionMenu',],s=(15,2))],
+                [name('Checkbox'), sg.Checkbox('Checkbox')],
+                [name('Radio'), sg.Radio('Radio', 1),sg.Radio('Radio', 1),sg.Radio('Radio', 1)],
+                [name('Spin'), sg.Spin(['Spin',], s=(15,2))],
+                [name('Button'), sg.Button('Button')],
+                [name('ButtonMenu'), sg.ButtonMenu('ButtonMenu', sg.MENU_RIGHT_CLICK_EDITME_EXIT)],
+                [name('Slider'), sg.Slider((0,10), orientation='h', s=(10,15))],
+                [name('Listbox'), sg.Listbox(['Listbox', 'Listbox 2'], no_scrollbar=True,  s=(15,2))],
+                [name('Image'), sg.Image(sg.EMOJI_BASE64_HAPPY_THUMBS_UP)],
+                [name('Graph'), sg.Graph((125, 50), (0,0), (125,50), k='-GRAPH-')]  ]
+
+    layout_r  = [
+        [name('Canvas'), sg.Canvas(background_color=sg.theme_button_color()[1], size=(125,50))],
+                [name('ProgressBar'), sg.ProgressBar(100, orientation='h', s=(10,20), k='-PBAR-')],
+                [name('Table'), sg.Table([[1,2,3], [4,5,6]], ['Col 1','Col 2','Col 3'], num_rows=2)],
+                [name('Tree'), sg.Tree(treedata, ['Heading',], num_rows=3)],
+                [name('Horizontal Separator'), sg.HSep()],
+                [name('Vertical Separator'), sg.VSep()],
+                [name('Frame'), sg.Frame('Frame', [[sg.Text('Text1'),sg.Text('Text2'),sg.Text('Text3')]])],
+                [name('Column'), sg.Column([[sg.T(s=15)]])],
+                [name('Tab, TabGroup'), sg.TabGroup([[sg.Tab('Tab1',[[sg.T(s=(15,2))]]), sg.Tab('Tab2', [[]])]])],
+                [name('Pane'), sg.Pane([sg.Col([[sg.T('Pane 1')]]), sg.Col([[sg.T('Pane 2')]])])],
+                [name('Push'), sg.Push(), sg.T('Pushed over')],
+                [name('VPush'), sg.VPush()],
+                [name('Sizer'), sg.Sizer(1,1)],
+                [name('StatusBar'), sg.StatusBar('StatusBar')],
+                [name('Sizegrip'), sg.Sizegrip()]  
+            ]
+
+    layout = [[sg.MenubarCustom([['File', ['Exit']], ['Edit', ['Edit Me', ]]],  k='-CUST MENUBAR-',p=0)] if use_custom_titlebar else [sg.Menu([['File', ['Exit']], ['Edit', ['Edit Me', ]]],  k='-CUST MENUBAR-',p=0)],
+              [sg.Checkbox('Use Custom Titlebar & Menubar', use_custom_titlebar, enable_events=True, k='-USE CUSTOM TITLEBAR-')],
+              [sg.T('PySimpleGUI Elements - Use Combo to Change Themes', font='_ 18', justification='c', expand_x=True)],
+              [sg.Col(layout_l), sg.Col(layout_r)]]
+
+    window = sg.Window('The PySimpleGUI Element List', layout, finalize=True, right_click_menu=sg.MENU_RIGHT_CLICK_EDITME_VER_EXIT, keep_on_top=True, use_custom_titlebar=use_custom_titlebar)
+
+    window['-PBAR-'].update(30)                                                     # Show 30% complete on ProgressBar
+    window['-GRAPH-'].draw_image(data=sg.EMOJI_BASE64_HAPPY_JOY, location=(0,50))   # Draw something in the Graph Element
+
+    return window
+
+# Start of the program...
+window = make_window()
+
+while True:
+    event, values = window.read()
+    sg.popup(event, values)                     # show the results of the read in a popup Window
+    if event == sg.WIN_CLOSED or event == 'Exit':
+        break
+    if values['-COMBO-'] != sg.theme():
+        sg.theme(values['-COMBO-'])
+        window.close()
+        window = make_window()
+    if event == '-USE CUSTOM TITLEBAR-':
+        use_custom_titlebar = values['-USE CUSTOM TITLEBAR-']
+        window.close()
+        window = make_window()
+window.close()
+
