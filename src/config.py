@@ -1,6 +1,6 @@
 import logging 
 #circle procedureù
-dt = 0.01
+dt = 0.1
 theta = 0.0
 radius = 2.0
 omega = 2.0
@@ -19,6 +19,7 @@ path_points=[0.0, 0.0, 0.0]
 path_index = -1
 
 #spin procedure
+spin_rad=0.05
 
 #updown procedure
 

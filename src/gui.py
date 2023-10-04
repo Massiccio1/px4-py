@@ -29,7 +29,7 @@ from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand
 from commander_msg.msg import CommanderAll, CommanderArm, CommanderMode, CommanderAction
 
 import logging
-import threading
+import threading, _thread
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -71,6 +71,18 @@ class GUI(Node):
         # while True:
         #     adad=0
         
+        class slider:
+            max_range=np.pi
+            min_range=-np.pi
+            max_radius = 20
+            max_omega = np.pi
+            default = 0.0
+            resolution=0.01
+            orientation='h'
+            size=(15,10)
+
+        
+        slid = slider()
         
         rtl=[
             [sg.Text('Robotics Remote Control')],
@@ -86,40 +98,69 @@ class GUI(Node):
         essential=[
                 [sg.Text("drone: UNKNOWN", key="arm_text"),sg.Text("commander: DISCONNECTED", key="commander_status")],
                 [sg.Button('ARM', key="arm_button"),sg.Button('DISARM', key="disarm_button")],
-                [sg.Button('TAKEOFF', key="takeoff_button"),sg.Button('LAND', key="land_button")],
-                [sg.Text()],
-                [sg.Radio('routine', 1, key= "rd_routine"),sg.Radio('path',  1, key = "rd_path"),sg.Radio('spin', 1, key = "rd_spin"),sg.Radio('updown', 1, key = "rd_updown"),sg.Radio('None', 1, default=True)],
-                [sg.Button('Confirm', key="mode_button")]
+                [sg.Button('TAKEOFF', key="takeoff_button"),sg.Button('LAND', key="land_button")]
         ]
         
-        test = [[sg.Text('My one-shot window.')],      
-                 [sg.InputText()],      
-                 [sg.Submit(), sg.Cancel()]
+        mode = [
+            [sg.Radio('routine', 1, key= "rd_routine"),sg.Radio('path',  1, key = "rd_path"),sg.Radio('spin', 1, key = "rd_spin"),sg.Radio('updown', 1, key = "rd_updown"),sg.Radio('None', 1, key="rd_none",default=True)],
+            [sg.Button('Confirm', key="mode_button")],
+            [sg.Text("\ntheta"),sg.Slider((slid.min_range,slid.max_range), key="theta",default_value=0.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size),
+            sg.Text("\nradius"),sg.Slider((0,slid.max_radius), key="radius",default_value=2.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size)],
+            [sg.Text("\nomega"),sg.Slider((0,slid.max_omega), key="omega",default_value=1.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size)],
+            [sg.Text("\nspin speed"),sg.Slider((0,slid.max_range), key="spin_speed",default_value=1.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size)]
+        ]
+        
+        test = [
+            [sg.Text('My one-shot window.')],      
+            [sg.InputText()],      
+            [sg.Submit(), sg.Cancel()]
+        ] 
+        test2 = [
+            [sg.Text('My one-shot window.')],      
+            [sg.InputText()],      
+            [sg.Submit(), sg.Cancel()]
         ] 
         
         text = [
             [sg.Text('Text1'),sg.Text('Text2'),sg.Text('Text3')]
         ]
+        text2 = [
+            [sg.Text('Text1'),sg.Text('Text2'),sg.Text('Text3')]
+        ]
+        text3 = [
+            [sg.Text('Text1'),sg.Text('Text2'),sg.Text('Text3')]
+        ]
         
+        tabs = sg.TabGroup([[sg.Tab('local position',text), sg.Tab('gps', text2), sg.Tab('failsafe', text3)]])
+        tabs_r = sg.TabGroup([[sg.Tab('Auto',mode), sg.Tab('Manual', rtl)]])
         
+        slider1=[
+            [sg.Slider((0,10), orientation='h', s=(10,15))]
+        ]
+        
+        #right_frame= sg.Frame('Commands', [sg.Frame("core", essential), sg.Frame("Mode",mode)]    )
+        right_layout= [
+            [sg.Frame("", essential)],
+            [sg.Frame("",[[tabs_r]])]
+        ]
+        right_frame= sg.Frame('Commands', right_layout    )
         
         layout = [
-                [sg.TabGroup([[sg.Tab('Tab1',test), sg.Tab('Tab2', rtl)]]),sg.Frame('Frame', essential)    ]
-                
+                [tabs,right_frame]
             ]
 
-        window = sg.Window('Window Title', layout)    
+        # window = sg.Window('Window Title', layout)    
 
-        event, values = window.read()    
-        window.close()
+        # event, values = window.read()    
+        # window.close()
         
-        exit(0)
+        # exit(0)
 
         #self.window = sg.Window('Commander GUI', sg.Frame('controller',essential))
         self.window = sg.Window('Commander GUI', layout)
 
-        #threading.Thread(target=self.window_thread).start()
-        
+        t=threading.Thread(target=self.window_thread)
+        t.start()
         logging.info("thread for windo started")
 
     def window_thread(self):
@@ -196,11 +237,13 @@ class GUI(Node):
         logging.info("window closing")
         self.window.close()
         self.exit=True
+        _thread.interrupt_main()
         exit(0)
     
     def vehicle_local_position_callback(self, vehicle_local_position):
         """Callback function for vehicle_local_position topic subscriber."""
         #logging.debug("recived vehicle position")
+        #logging.debug(vehicle_local_position)
         self.vehicle_local_position = vehicle_local_position
 
     def vehicle_status_callback(self, vehicle_status):
@@ -216,7 +259,7 @@ class GUI(Node):
         self.delta_hr=current- new_time
         self.last_heartbeat = new_time
         # logging.debug("hr delta")
-        logging.debug(self.delta_hr)
+        #logging.debug(self.delta_hr)
         #1 secondo arbitrario
 
     def arm(self):
@@ -241,11 +284,19 @@ class GUI(Node):
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         
         msg.ready=True
+        if values["rd_none"]:
+            msg.ready=False
         
         msg.routine=values["rd_routine"]
         msg.path=values["rd_path"]
         msg.spin=values["rd_spin"]
         msg.updown=values["rd_updown"]
+        
+        msg.theta = values["theta"]
+        msg.radius = values["radius"]
+        msg.omega = values["omega"]
+        msg.spin_speed = values["spin_speed"]
+        
         self.commander_mode_pub.publish(msg)
         logging.info("sent change mode command")
 
@@ -254,7 +305,7 @@ class GUI(Node):
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         msg.action = action
         self.commander_action_pub.publish(msg)
-        
+    
 
 def main(args=None) -> None:
     print('Starting Gui for commander')

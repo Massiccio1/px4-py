@@ -37,6 +37,8 @@ class OffboardControl(Node):
         self.tic=0        
         self.base = [0.0,0.0,-1.0] 
         self.path_index = -1
+        
+        self.spin_rad=config.spin_rad
 
         self.takeoff_height = config.takeoff_height
         
@@ -138,6 +140,11 @@ class OffboardControl(Node):
         self.spin=msg.spin
         self.updown=msg.updown
         
+        self.theta=msg.theta
+        self.omega=msg.omega
+        self.radius=msg.radius
+        self.spin_rad=msg.spin_speed
+        
     def commander_action_callback(self, action):
         """comamnder action callback"""
         logging.info("ros callback for action")
@@ -145,8 +152,9 @@ class OffboardControl(Node):
             "takeoff": self.takeoff,
             "land": self.land
         }
-  
         operation = ops.get(action.action, self.action_error)
+
+        
         operation()
         
     def action_error(self):
@@ -184,8 +192,6 @@ class OffboardControl(Node):
         msg.yaw = 1.57079  # (90 degree)
         msg.yaw = 0.0
         # msg.yaw = self.tic*1.0
-        if yaw==None:
-            yaw = vehicle_local_position.x
         msg.yaw = yaw
         #msg.yawspeed = yawspeed
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
@@ -351,8 +357,8 @@ class OffboardControl(Node):
                         self.land()
                         exit(0)
         if self.ready and self.spin:
-            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z,self.vehicle_local_position.heading+0.01)
-            print("yaw: ",self.vehicle_local_position.heading+0.05)
+            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z,self.vehicle_local_position.heading+self.spin_rad)
+            logging.info("yaw: ",self.vehicle_local_position.heading+self.spin_rad)
        			
         if self.ready and self.routine:
             self.traj_x = self.radius * np.cos(self.theta)
