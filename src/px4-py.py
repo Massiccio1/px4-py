@@ -281,6 +281,8 @@ class OffboardControl(Node):
     def takeoff(self):
         logging.info("taking off")
         
+        self.ready = False
+        
         self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height,self.vehicle_local_position.heading)
 
         if self.vehicle_local_position.z < self.takeoff_height*0.95:

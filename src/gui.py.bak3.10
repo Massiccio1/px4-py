@@ -242,10 +242,8 @@ class GUI(Node):
                 x_graph -= step_size
             lastx, lasty = x_graph, y_graph
             x_graph += step_size
-            
-            
-            ##rip python3.8
-            #match event:
+                    
+            match event:
             
                 # case sg.TIMEOUT_EVENT:
                 #     logging.debug("event: ")
@@ -256,113 +254,113 @@ class GUI(Node):
                 # elif event != sg.TIMEOUT_EVENT:
                 #     # if not a timeout event, then it's a button that's being held down
                 #     self.window['-STATUS-'].update(event)
-            if event== sg.TIMEOUT_EVENT:
-                dict_arm = {
-                    0:"drone: UNKNOWN",
-                    1:"drone: DISARMED",
-                    2:"drone: ARMED"
-                }
-                dict_arm_color={
-                    0: "gray",
-                    1: "red",
-                    2: "green"
-                }
-                dict_failsafe={
-                    False:"failsafe: FALSE",
-                    True: "failsafe: TRUE"
-                }
-                dict_color_failsafe={
-                    False:"green",
-                    True: "red"
-                }
-                
-                
-                com_stat="commander: DISCONNECTED"
-                color_stat= "red"
-                now = self.now()
-                diff = (now-self.last_heartbeat)//1000#milliseconds
-                
-                # logging.info("new elta hr\n-------------------")
-                # logging.info(self.last_heartbeat)
-                # logging.info(now)
-                # logging.info(diff)
-                # logging.info(self.delta_hr)
-                # logging.debug("difference")
-                # logging.debug(diff)
-                if diff<2000:#1.5 secondi arbitrari
-                    com_stat="commander: CONNECTED"
-                    color_stat = "green"
-                try:
-                    self.window["commander_status"].update(com_stat)
-                    self.window["commander_status"].update(background_color=color_stat)
-                    self.window["arm_text"].update(dict_arm[self.vehicle_status.arming_state])
-                    self.window["arm_text"].update(background_color=dict_arm_color[self.vehicle_status.arming_state])
-                    self.window["failsafe_text"].update(dict_failsafe[self.vehicle_status.failsafe])
-                    self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
-                    self.window["tab_lp"].update(self.parse_vlp())
-                    self.window["tab_gps"].update(self.parse_gps())
-                    self.window["tab_status"].update(self.parse_status())
-                    self.window["tab_battery"].update(self.parse_battery())
-                    self.window["bar_battery"].update(current_count=self.parse_battery_level())
-                except:
-                    #logging.error("no vehicle status yet")
-                    asdasd=1
-                
-        
-            elif event== "arm_button":
-                logging.info("arm button pressed")
-                self.arm()
-                
-            
-            elif event== "disarm_button":
-                logging.info("disarm button pressed")
-                self.disarm()
-                
-                
-            elif event== "disarm_button":
-                logging.info("disarm button pressed")
-                self.disarm()
-                
-            
-            elif event== "takeoff_button":
-                logging.info("takeoff button pressed")
-                self.action("takeoff")
-                
-            
-            elif event== "land_button":
-                logging.info("land button pressed")
-                self.action("land")
-                
-            
-            elif event== "mode_button":
-                logging.info("confirm mode button pressed with value: ",values)
-                self.changeMode(values)
-                
-            
-            elif event== "mode_button":
-                logging.info("confirm mode button pressed with value: ",values)
-                self.changeMode(values)
-                
-            elif event== "btn_stop":
-                self.stop()
-            
-            #
-            elif "pad" in event:
-                #logging.info("pad pressed")
-                self.manual(event,values)
-                
-            elif event== "file_load":
-                path = self.load_path(values)
-                if path:
-                    #self.window["table_path"].update(num_rows=len(path))
-                    self.window["table_path"].update(visible=True)
-                    self.window["table_path"].update(values=path)
+                case sg.TIMEOUT_EVENT:
+                    dict_arm = {
+                        0:"drone: UNKNOWN",
+                        1:"drone: DISARMED",
+                        2:"drone: ARMED"
+                    }
+                    dict_arm_color={
+                        0: "gray",
+                        1: "red",
+                        2: "green"
+                    }
+                    dict_failsafe={
+                        False:"failsafe: FALSE",
+                        True: "failsafe: TRUE"
+                    }
+                    dict_color_failsafe={
+                        False:"green",
+                        True: "red"
+                    }
                     
-            else:
-                # A timeout signals that all buttons have been released so clear the status display
-                logging.debug(event)
-                
+                    
+                    com_stat="commander: DISCONNECTED"
+                    color_stat= "red"
+                    now = self.now()
+                    diff = (now-self.last_heartbeat)//1000#milliseconds
+                    
+                    # logging.info("new elta hr\n-------------------")
+                    # logging.info(self.last_heartbeat)
+                    # logging.info(now)
+                    # logging.info(diff)
+                    # logging.info(self.delta_hr)
+                    # logging.debug("difference")
+                    # logging.debug(diff)
+                    if diff<2000:#1.5 secondi arbitrari
+                        com_stat="commander: CONNECTED"
+                        color_stat = "green"
+                    try:
+                        self.window["commander_status"].update(com_stat)
+                        self.window["commander_status"].update(background_color=color_stat)
+                        self.window["arm_text"].update(dict_arm[self.vehicle_status.arming_state])
+                        self.window["arm_text"].update(background_color=dict_arm_color[self.vehicle_status.arming_state])
+                        self.window["failsafe_text"].update(dict_failsafe[self.vehicle_status.failsafe])
+                        self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
+                        self.window["tab_lp"].update(self.parse_vlp())
+                        self.window["tab_gps"].update(self.parse_gps())
+                        self.window["tab_status"].update(self.parse_status())
+                        self.window["tab_battery"].update(self.parse_battery())
+                        self.window["bar_battery"].update(current_count=self.parse_battery_level())
+                    except:
+                        #logging.error("no vehicle status yet")
+                        asdasd=1
+                    
             
+                case "arm_button":
+                    logging.info("arm button pressed")
+                    self.arm()
+                    
+                
+                case "disarm_button":
+                    logging.info("disarm button pressed")
+                    self.disarm()
+                    
+                    
+                case "disarm_button":
+                    logging.info("disarm button pressed")
+                    self.disarm()
+                    
+                
+                case "takeoff_button":
+                    logging.info("takeoff button pressed")
+                    self.action("takeoff")
+                    
+                
+                case "land_button":
+                    logging.info("land button pressed")
+                    self.action("land")
+                    
+                
+                case "mode_button":
+                    logging.info("confirm mode button pressed with value: ",values)
+                    self.changeMode(values)
+                    
+                
+                case "mode_button":
+                    logging.info("confirm mode button pressed with value: ",values)
+                    self.changeMode(values)
+                    
+                case "btn_stop":
+                    self.stop()
+                
+                #
+                case str(x) if 'pad' in x:
+                    #logging.info("pad pressed")
+                    self.manual(event,values)
+                    
+                case "file_load":
+                    path = self.load_path(values)
+                    if path:
+                        #self.window["table_path"].update(num_rows=len(path))
+                        self.window["table_path"].update(visible=True)
+                        self.window["table_path"].update(values=path)
+                        
+                case _:
+                    # A timeout signals that all buttons have been released so clear the status display
+                    logging.debug(event)
+                    
+                
 
         logging.info("window closing")
         self.window.close()
@@ -540,27 +538,26 @@ class GUI(Node):
         speed_2=values["pad_2_speed"]
         
         #first I set which values change with -1,0,1, then I multiply to get the real delta
-        ##rip python3.8
-        #match action:
         
-        if action== "pad_forward":
-            dx=1
-        if action== "pad_back":
-            dx=-1
-        if action== "pad_left":
-            dy=-1
-        if action== "pad_right":
-            dy=1
-        if action== "pad_up":
-            #drone frame
-            dz=-1
-        if action== "pad_down":
-            #drone frame
-            dz=1
-        if action== "pad_turn_left":
-            dyaw=-1
-        if action=="pad_turn_right":
-            dyaw=1
+        match action:
+            case "pad_forward":
+                dx=1
+            case "pad_back":
+                dx=-1
+            case "pad_left":
+                dy=-1
+            case "pad_right":
+                dy=1
+            case "pad_up":
+                #drone frame
+                dz=-1
+            case "pad_down":
+                #drone frame
+                dz=1
+            case "pad_turn_left":
+                dyaw=-1
+            case "pad_turn_right":
+                dyaw=1
         
         dx*=speed_1
         dy*=speed_1
@@ -683,7 +680,6 @@ class GUI(Node):
             21:"orbit",
             22:"vtol takeoff"
         }
-        time="timestamp: "+ str(st.timestamp) + "\n"
         arm=f"\nARMING STATE\narm status: {armed_state[st.arming_state]}\nlatest arming reason: {dict_arm_reason[st.latest_arming_reason]}\nlatest diarming reason: {dict_arm_reason[st.latest_disarming_reason]}\n"
         nav=f"\nNAVIGATION\nnavigation state: {dict_nav_state[st.nav_state]}\n"
         failure=f"\nFAILURE\nfailure detector: {st.failure_detector_status}\nfailsafe: {st.failsafe}\npreflight check pass: {st.pre_flight_checks_pass}\n"
@@ -691,17 +687,15 @@ class GUI(Node):
         fs2=f"\nmission failure: {fs.mission_failure}\nlow local position accuracy: {fs.local_position_accuracy_low}"
         fs3=f"\nesc arming failure: {fs.fd_esc_arming_failure}\nimbalanced props {fs.fd_imbalanced_prop}\nmotor failure: {fs.fd_motor_failure}"
         fs4=f"\ncritical failure: {fs.fd_critical_failure}"
-        return time+arm+nav+failure+fs1+fs2+fs3+fs4
+        return arm+nav+failure+fs1+fs2+fs3+fs4
         
     def parse_battery(self):
         bt=self.battery
-        
-        time="timestamp: "+ str(bt.timestamp) + "\n"
         volt=f"\nVOLTAGE\nvoltage: {bt.voltage_v:.3f} V\n"
         amp=f"\nCURRENT\ncurrent: {bt.current_a:.3f}\ncurrent average: {bt.current_average_a:.3f} A\n"
         charge=f"\nCHARGE\nremaining: {(bt.remaining*100):.3f} %\ndischarged {bt.discharged_mah} mah\n time remaining: {(bt.time_remaining_s/60):.1f} minutes\n"
         info=f"\nINFO\ntemperature: {bt.temperature:.3f}"
-        return time+volt+amp+charge+info
+        return volt+amp+charge+info
         
     def parse_battery_level(self):
         minV=13.2
