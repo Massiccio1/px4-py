@@ -26,7 +26,8 @@ spin_rad=0.05
 ##flight config
 #relative, negative means up (NED frame)
 takeoff_height = -1.0
+cruising_speed = 0.5
 
 #gui
 gui = True
-log=logging.DEBUG
+log=logging.INFO

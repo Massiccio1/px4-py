@@ -300,10 +300,11 @@ class GUI(Node):
                     self.window["failsafe_text"].update(dict_failsafe[self.vehicle_status.failsafe])
                     self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
                     self.window["tab_lp"].update(self.parse_vlp())
-                    self.window["tab_gps"].update(self.parse_gps())
                     self.window["tab_status"].update(self.parse_status())
                     self.window["tab_battery"].update(self.parse_battery())
                     self.window["bar_battery"].update(current_count=self.parse_battery_level())
+                    self.window["tab_gps"].update(self.parse_gps())
+
                 except:
                     #logging.error("no vehicle status yet")
                     asdasd=1
@@ -699,7 +700,7 @@ class GUI(Node):
         time="timestamp: "+ str(bt.timestamp) + "\n"
         volt=f"\nVOLTAGE\nvoltage: {bt.voltage_v:.3f} V\n"
         amp=f"\nCURRENT\ncurrent: {bt.current_a:.3f}\ncurrent average: {bt.current_average_a:.3f} A\n"
-        charge=f"\nCHARGE\nremaining: {(bt.remaining*100):.3f} %\ndischarged {bt.discharged_mah} mah\n time remaining: {(bt.time_remaining_s/60):.1f} minutes\n"
+        charge=f"\nCHARGE\nremaining: {(bt.remaining*100):.3f} %\ndischarged {bt.discharged_mah:.3f} mah\n time remaining: {(bt.time_remaining_s/60):.1f} minutes\n"
         info=f"\nINFO\ntemperature: {bt.temperature:.3f}"
         return time+volt+amp+charge+info
         

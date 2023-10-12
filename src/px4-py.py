@@ -193,6 +193,8 @@ class OffboardControl(Node):
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.offboard_control_mode_publisher.publish(msg)
 
+        logging.info("heartbeat sent")
+        
     def publish_position_setpoint(self, x: float, y: float, z: float, yaw=None):
         """Publish the trajectory setpoint."""
         
