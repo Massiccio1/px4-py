@@ -28,6 +28,14 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 from px4_msgs.msg import OffboardControlMode,BatteryStatus, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition,FailsafeFlags, VehicleStatus, VehicleAttitudeSetpoint, SensorGps
 from commander_msg.msg import CommanderAll, CommanderPathPoint ,CommanderArm, CommanderMode, CommanderAction
 
+
+from tkinter import *
+from random import randint
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, FigureCanvasAgg
+from matplotlib.figure import Figure
+import matplotlib.backends.tkagg as tkagg
+import tkinter as Tk
+
 from random import randint
 import logging
 import threading, _thread
@@ -83,6 +91,8 @@ class GUI(Node):
         self.last_heartbeat=0
         self.delta_hr=100000#alto per averlo staccato all'inizio
         self.last_pad=0#per il pempo tra trasmisioni
+        
+        self.max_error=0
         
         # #busy loop
         # while True:
@@ -182,8 +192,8 @@ class GUI(Node):
         graph_layout = [  
             [sg.Text('Speed:', size=(20,1)),
              sg.Slider((1,30), default_value=GRAPH_STEP_SIZE, orientation='h', key='graph_speed')],
-            [sg.Text('Scale:', size=(20,1)),
-             sg.Slider((1,200), default_value=GRAPH_STEP_SIZE, orientation='h', key='graph_scale')],
+            [sg.Text('Scale:', size=(20,1), ),
+             sg.Slider((1,1000), default_value=100, orientation='h', key='graph_scale')],
             [sg.Graph(GRAPH_SIZE, (0,0), GRAPH_SIZE, key='graph_1', background_color='lightblue'),],
             [sg.Graph(GRAPH_SIZE, (0,0), GRAPH_SIZE, key='graph_2', background_color='lightblue'),],
         ]
@@ -210,15 +220,34 @@ class GUI(Node):
         # exit(0)
 
         #self.window = sg.Window('Commander GUI', sg.Frame('controller',essential))
-        self.window = sg.Window('Commander GUI', layout)
+        self.window = sg.Window('Commander GUI', layout,finalize=True)
 
         t=threading.Thread(target=self.window_thread)
+        #t.setDaemon(True)
         t.start()
         logging.info("thread for window started")
 
     def window_thread(self):
         
         x_graph = lastx = lasty = 0
+        #one time config
+        g1=self.window['graph_1']
+        g2=self.window['graph_2']
+        
+        fig=Figure()
+        
+        
+        ax = fig.add_subplot(111)
+        ax.set_xlabel("X axis")
+        ax.set_ylabel("Y axis")
+        ax.grid()
+        
+        error_buffer=[]
+        graph = FigureCanvasTkAgg(fig, master=g1.TKCanvas)
+        canvas = g2.TKCanvas
+        
+        graph.switch_backend('agg')
+        
         while True:
             
             # This is the code that reads and updates your window
@@ -230,20 +259,42 @@ class GUI(Node):
             #redraw graphs
             step_size = values['graph_speed']
             scale = values['graph_scale']
-            y_graph=self.pose_error()*scale/100
-            #y = randint(0,GRAPH_SIZE[1])*scale/100        # get random point for graph
+            
+            y_graph=self.pose_error()*scale/100 +10
+            y_graph2=self.pose_error()*scale/100 +10
+            
+            scale_line=g1.draw_line((0, self.max_error*scale/100 +10),(GRAPH_SIZE[0], self.max_error*scale/100 +10), width = 1)
+            g1.DrawLine((0, 10), (GRAPH_SIZE[0], 10), width=1)
+            
+            #y_graph = randint(0,GRAPH_SIZE[1])*scale/100        # get random point for graph
             if x_graph < GRAPH_SIZE[0]:               # if still drawing initial width of graph
-                self.window['graph_1'].DrawLine((lastx, lasty), (x_graph, y_graph), width=1)
+                g1.DrawLine((lastx, lasty), (x_graph, y_graph), color="red", width=2)
             else:                               # finished drawing full graph width so move each time to make room
-                self.window['graph_1'].Move(-step_size, 0)
-                self.window['graph_1'].DrawLine((lastx, lasty), (x_graph, y_graph), width=1)
-                self.window['graph_2'].Move(-step_size, 0)
-                self.window['graph_2'].DrawLine((lastx, lasty), (x_graph, y_graph), width=1)
+                g1.Move(-step_size, 0)
+                g1.draw_line((lastx, lasty), (x_graph, y_graph), color="red", width=2)
                 x_graph -= step_size
             lastx, lasty = x_graph, y_graph
             x_graph += step_size
             
-            
+            if error_buffer:
+
+                ax.cla()
+                ax.grid()
+
+                ax.plot(range(len(error_buffer)), error_buffer, color='purple')
+                graph.draw()
+                figure_x, figure_y, figure_w, figure_h = fig.bbox.bounds
+                figure_w, figure_h = int(GRAPH_SIZE[0]/2), int(GRAPH_SIZE[1]/2)
+                photo = Tk.PhotoImage(master=canvas, width=figure_w, height=figure_h)
+
+                canvas.create_image(GRAPH_SIZE[0]/2, GRAPH_SIZE[1]/2, image=photo)
+
+                figure_canvas_agg = FigureCanvasAgg(fig)
+                figure_canvas_agg.draw()
+
+                tkagg.blit(photo, figure_canvas_agg.get_renderer()._renderer, colormode=2)      
+                    
+                        
             ##rip python3.8
             #match event:
             
@@ -276,7 +327,10 @@ class GUI(Node):
                     True: "red"
                 }
                 
-                
+                error_buffer.append(self.pose_error())
+                if len(error_buffer)>100:  #10 secondi di errore
+                    error_buffer = error_buffer[-100:]
+                    
                 com_stat="commander: DISCONNECTED"
                 color_stat= "red"
                 now = self.now()
@@ -725,6 +779,10 @@ class GUI(Node):
             dist = math.dist([x1,y1,z1],self.setpoint_position)
             logging.debug("dist")
             logging.debug(dist)
+            
+            if dist > self.max_error:
+                self.max_error=dist
+            
             return dist
         except:
             return 0

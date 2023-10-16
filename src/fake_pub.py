@@ -19,7 +19,6 @@ class Converter(Node):
         super().__init__('opti_to_px4')
 
         self.odo=VehicleOdometry()
-        self.pose=PoseStamped()
         self.ready=True
         
         self.pubs=0
@@ -44,19 +43,12 @@ class Converter(Node):
         # Create subscribers
         self.vehicle_odometry_subscriber = self.create_subscription(
             VehicleOdometry, '/fmu/out/vehicle_odometry', self.vehicle_odometry_callback, qos_profile)
-        self.optitrack_subscriber= self.create_subscription(
-            PoseStamped, '/optiTrack/pose', self.optitrack_pose_callback, qos.qos_profile_sensor_data)
 
         # Initialize variables
         self.offboard_setpoint_counter = 0
         self.vehicle_local_position = VehicleLocalPosition()
         self.vehicle_status = VehicleStatus()
         
-
-        # Create a timer to publish control commands
-        self.timer = self.create_timer(0.01, self.timer_callback)
-        
-        self.timer_status = self.create_timer(1.0, self.status_callback)
         
         logging.debug("init complete")
 
@@ -66,6 +58,9 @@ class Converter(Node):
 
         self.odo = msg
         self.sub_odo = self.sub_odo + 1
+        
+        self.odometry_publisher.publish(self.odo)
+        self.v_odometry_publisher.publish(self.odo)
 
 
     def optitrack_pose_callback(self, msg):
@@ -76,42 +71,6 @@ class Converter(Node):
 
 
 
-    def publish_mocap_odometry(self):
-        """Publish the mocap odometry"""
-        
-        logging.debug("publishing mocap")
-        
-        msg = VehicleOdometry()
-        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
-        msg.timestamp_sample = int(self.get_clock().now().nanoseconds / 1000)
-        
-        xyz = self.pose.pose.position
-        p = [xyz.x,xyz.z, -xyz.y] #z with - for NED
-        
-        qt=self.pose.pose.orientation
-        qt=self.pose.pose.orientation
-        
-        q=[qt.x,qt.y,qt.z,qt.w]
-        msg.pose_frame=1 #NED frame
-        msg.velocity_frame=1 #NED frame
-        msg.position=p
-        msg.q=q
-        msg.velocity = self.odo.velocity
-        msg.angular_velocity = self.odo.angular_velocity
-        msg.position_variance = self.odo.position_variance
-        msg.orientation_variance = self.odo.orientation_variance
-        msg.velocity_variance = self.odo.velocity_variance
-        msg.quality = 1
-
-
-        self.odometry_publisher.publish(msg)
-        self.v_odometry_publisher.publish(msg)
-        
-        self.pubs = self.pubs + 1
-
-    def timer_callback(self) -> None:
-        if self.ready:
-            self.publish_mocap_odometry()
             
     def status_callback(self) -> None:
         logging.info("---------------------")

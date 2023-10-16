@@ -1,47 +1,52 @@
+from tkinter import *
+from random import randint
 import PySimpleGUI as sg
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, FigureCanvasAgg
+from matplotlib.figure import Figure
+import matplotlib.backends.tkagg as tkagg
+import tkinter as Tk
 
-import rclpy
-import numpy as np
-import json
-import math
-from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-from px4_msgs.msg import OffboardControlMode,BatteryStatus, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition,FailsafeFlags, VehicleStatus, VehicleAttitudeSetpoint, SensorGps
-from commander_msg.msg import CommanderAll, CommanderPathPoint ,CommanderArm, CommanderMode, CommanderAction
-from std_msgs.msg import Float64MultiArray
-   
-year = [1920,1930,1940,1950,1960,1970,1980,1990,2000,2010]
-unemployment_rate = [9.8,12,8,7.2,6.9,7,6.5,6.2,5.5,6.3]
-  
-def create_plot(year, unemployment_rate):
-    plt.plot(year, unemployment_rate, color='red', marker='o')
-    plt.title('Unemployment Rate Vs Year', fontsize=14)
-    plt.xlabel('Year', fontsize=14)
-    plt.ylabel('Unemployment Rate', fontsize=14)
-    plt.grid(True)
-    return plt.gcf()
+fig = Figure()
 
-layout = [[sg.Text('Line Plot')],
-          [sg.Canvas(size=(800, 800), key='-CANVAS-')],
-          [sg.Exit()]]
+ax = fig.add_subplot(111)
+ax.set_xlabel("X axis")
+ax.set_ylabel("Y axis")
+ax.grid()
 
-def draw_figure(canvas, figure):
-    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+layout = [[sg.Text('Animated Matplotlib', size=(40, 1), justification='center', font='Helvetica 20')],
+          [sg.Canvas(size=(640, 480), key='canvas')],
+          [sg.Button('Exit', size=(10, 2), pad=((280, 0), 3), font='Helvetica 14')]]
+
+# create the window and show it without the plot    
+
+
+window = sg.Window('Demo Application - Embedding Matplotlib In PySimpleGUI', layout, finalize=True)
+# needed to access the canvas element prior to reading the window
+
+canvas_elem = window['canvas']
+
+graph = FigureCanvasTkAgg(fig, master=canvas_elem.TKCanvas)
+canvas = canvas_elem.TKCanvas
+
+dpts = [randint(0, 10000)/10000 for x in range(10000)]
+# Our event loop      
+for i in range(len(dpts)):
+    event, values = window.read(timeout=20)
+    if event == 'Exit' or event == sg.WIN_CLOSED:
+        exit(69)
+
+    ax.cla()
+    ax.grid()
+
+    ax.plot(range(20), dpts[i:i + 20], color='purple')
+    graph.draw()
+    figure_x, figure_y, figure_w, figure_h = fig.bbox.bounds
+    figure_w, figure_h = int(figure_w), int(figure_h)
+    photo = Tk.PhotoImage(master=canvas, width=figure_w, height=figure_h)
+
+    canvas.create_image(640 / 2, 480 / 2, image=photo)
+
+    figure_canvas_agg = FigureCanvasAgg(fig)
     figure_canvas_agg.draw()
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
-    return figure_canvas_agg
 
-
-window = sg.Window('Demo Application - Embedding Matplotlib In PySimpleGUI', layout, finalize=True, element_justification='center')
-
-draw_figure(window['-CANVAS-'].TKCanvas, create_plot(year, unemployment_rate))
-
-while True:
-    event, values = window.read()
-    if event == sg.WIN_CLOSED or event == 'Exit':
-        break
-
-window.close()
+    tkagg.blit(photo, figure_canvas_agg.get_renderer()._renderer, colormode=2)      
