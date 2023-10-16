@@ -93,7 +93,6 @@ class GUI(Node):
         self.last_pad=0#per il pempo tra trasmisioni
         
         self.max_error=0
-        
         # #busy loop
         # while True:
         #     adad=0
@@ -223,8 +222,12 @@ class GUI(Node):
         self.window = sg.Window('Commander GUI', layout,finalize=True)
 
         t=threading.Thread(target=self.window_thread)
+        t=threading.Thread(target=self.end)
         #t.setDaemon(True)
         t.start()
+        
+        self.window_thread()
+        
         logging.info("thread for window started")
 
     def window_thread(self):
@@ -234,7 +237,7 @@ class GUI(Node):
         g1=self.window['graph_1']
         g2=self.window['graph_2']
         
-        fig=Figure()
+        fig=Figure(figsize=(4,4), dpi=80)
         
         
         ax = fig.add_subplot(111)
@@ -246,12 +249,12 @@ class GUI(Node):
         graph = FigureCanvasTkAgg(fig, master=g1.TKCanvas)
         canvas = g2.TKCanvas
         
-        graph.switch_backend('agg')
+        #graph.switch_backend('agg')
         
         while True:
             
             # This is the code that reads and updates your window
-            event, values = self.window.read(timeout=100)
+            event, values = self.window.read(timeout=1000)
             
             if event in (sg.WIN_CLOSED, 'Quit'):
                 break
@@ -284,7 +287,7 @@ class GUI(Node):
                 ax.plot(range(len(error_buffer)), error_buffer, color='purple')
                 graph.draw()
                 figure_x, figure_y, figure_w, figure_h = fig.bbox.bounds
-                figure_w, figure_h = int(GRAPH_SIZE[0]/2), int(GRAPH_SIZE[1]/2)
+                figure_w, figure_h = int(GRAPH_SIZE[0]), int(GRAPH_SIZE[1])
                 photo = Tk.PhotoImage(master=canvas, width=figure_w, height=figure_h)
 
                 canvas.create_image(GRAPH_SIZE[0]/2, GRAPH_SIZE[1]/2, image=photo)
@@ -293,7 +296,7 @@ class GUI(Node):
                 figure_canvas_agg.draw()
 
                 tkagg.blit(photo, figure_canvas_agg.get_renderer()._renderer, colormode=2)      
-                    
+                
                         
             ##rip python3.8
             #match event:
@@ -786,14 +789,16 @@ class GUI(Node):
             return dist
         except:
             return 0
+    def end(self):
+        rclpy.spin(self)
+        self.destroy_node()
+        rclpy.shutdown()
         
 def main(args=None) -> None:
     print('Starting Gui for commander')
     rclpy.init(args=args)
     gui = GUI()
-    rclpy.spin(gui)
-    gui.destroy_node()
-    rclpy.shutdown()
+
 
 
 if __name__ == '__main__':

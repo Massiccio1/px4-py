@@ -14,8 +14,8 @@ ax.set_ylabel("Y axis")
 ax.grid()
 
 layout = [[sg.Text('Animated Matplotlib', size=(40, 1), justification='center', font='Helvetica 20')],
-          [sg.Canvas(size=(640, 480), key='canvas')],
-          [sg.Button('Exit', size=(10, 2), pad=((280, 0), 3), font='Helvetica 14')]]
+          [sg.Canvas(size=(400, 200), key='canvas')],
+          [sg.Button('Exit', size=(10, 2), pad=((10, 0), 3), font='Helvetica 14')]]
 
 # create the window and show it without the plot    
 
@@ -44,7 +44,7 @@ for i in range(len(dpts)):
     figure_w, figure_h = int(figure_w), int(figure_h)
     photo = Tk.PhotoImage(master=canvas, width=figure_w, height=figure_h)
 
-    canvas.create_image(640 / 2, 480 / 2, image=photo)
+    canvas.create_image(400 / 2, 200 / 2, image=photo)
 
     figure_canvas_agg = FigureCanvasAgg(fig)
     figure_canvas_agg.draw()
