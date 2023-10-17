@@ -141,7 +141,7 @@ class OffboardControl(Node):
         logging.info("gforce disarm from ros callback")
         if not msg.arm:
             self.publish_vehicle_command(
-                VehicleCommand.VEHICLE_CMD_DO_FLIGHTTERMINATION
+                VehicleCommand.VEHICLE_CMD_DO_FLIGHTTERMINATION,
                 param1=1.0
             )
         

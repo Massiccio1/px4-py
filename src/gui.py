@@ -139,8 +139,8 @@ class GUI(Node):
         ]
         
         status=[
-            [sg.StatusBar("drone: UNKNOWN", key="arm_text"),sg.StatusBar("commander: DISCONNECTED", key="commander_status"),sg.StatusBar('failsafe status: UNKNOWN', key="failsafe_text"),sg.StatusBar('offboard signal: UNKNOWN', key="offboard_text")],
-            [],
+            [sg.StatusBar("drone: UNKNOWN", key="arm_text"),sg.StatusBar('preflight check: UNKNOWN', key="preflight_text"),sg.StatusBar('failsafe status: UNKNOWN', key="failsafe_text")],
+            [sg.StatusBar("commander: DISCONNECTED", key="commander_status"),sg.StatusBar('offboard signal: UNKNOWN', key="offboard_text")],
         ]
         
         essential=[
@@ -150,7 +150,7 @@ class GUI(Node):
         ]
         
         stop=[
-            [sg.Button("STOP", key="btn_stop",size=(5,5)), sg.Button("FORCE DISARM", key="btn_force_disarm",size=(5,5))]
+            [sg.Button("STOP", key="btn_stop",size=(5,5)), sg.Button("KILL", key="btn_force_disarm",size=(5,5), button_color="dark red")]
         ]
         
         mode = [
@@ -334,6 +334,20 @@ class GUI(Node):
                     False:"failsafe: FALSE",
                     True: "failsafe: TRUE"
                 }
+                dict_color_failsafe={
+                    False:"green",
+                    True: "red"
+                }
+                dict_preflight={
+                    #preflight check pass
+                    True:"preflight checks: PASS",
+                    False: "preflight checks: FAIL"
+                }
+                dict_color_preflight={
+                    #preflight check pass
+                    False:"red",
+                    True: "green"
+                }
                 dict_offboard={
                     False:"offboard: CONNECTED",
                     True: "offboard: LOST"
@@ -342,10 +356,7 @@ class GUI(Node):
                     False:"green",
                     True: "red"
                 }
-                dict_color_failsafe={
-                    False:"green",
-                    True: "red"
-                }
+                
                 
                 error_buffer.append(self.pose_error())
                 if len(error_buffer)>100:  #10 secondi di errore
@@ -375,6 +386,8 @@ class GUI(Node):
                     self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
                     self.window["offboard_text"].update(dict_offboard[self.failsafe.offboard_control_signal_lost])
                     self.window["offboard_text"].update(background_color=dict_color_offboard[self.failsafe.offboard_control_signal_lost])
+                    self.window["preflight_text"].update(dict_preflight[self.vehicle_status.pre_flight_checks_pass])
+                    self.window["preflight_text"].update(background_color=dict_color_preflight[self.vehicle_status.pre_flight_checks_pass])
                     self.window["tab_lp"].update(self.parse_vlp())
                     self.window["tab_status"].update(self.parse_status())
                     self.window["tab_battery"].update(self.parse_battery())
@@ -537,7 +550,7 @@ class GUI(Node):
         msg = CommanderArm()
         msg.timestamp = self.now()
         msg.arm=False
-        self.commander_arm_pub.publish(msg)
+        self.commander_force_disarm_pub.publish(msg)
         logging.info("sent disarm command")
         
     def changeMode(self, values):
