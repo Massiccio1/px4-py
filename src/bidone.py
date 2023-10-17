@@ -1,52 +1,45 @@
-from tkinter import *
-from random import randint
-import PySimpleGUI as sg
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, FigureCanvasAgg
+# https://old.reddit.com/r/learnpython/comments/daow1f/how_to_plot_realtime_data_on_matplotlib/
+
+import tkinter as tk
+import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-import matplotlib.backends.tkagg as tkagg
-import tkinter as Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import random
+# https://docs.python.org/3/library/collections.html#collections.deque
+from collections import deque
 
-fig = Figure()
+TIMESTEP = 100 # 100ms = 0.1s (but not guaranteed see tkinter.after())
+MAX_IDX = 100 # number of data points in sliding plot 100 * 0.1s = 10s of data
 
-ax = fig.add_subplot(111)
-ax.set_xlabel("X axis")
-ax.set_ylabel("Y axis")
-ax.grid()
+class GUI:
+    def __init__(self, master):
+        self.master = master
+        self.X = deque()
+        self.Y = deque()
+        self.fig = Figure(figsize = (4, 3))
+        self.axis = self.fig.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(self.fig, master = self.master)
+        self.canvas._tkcanvas.pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
+        self.loop()
 
-layout = [[sg.Text('Animated Matplotlib', size=(40, 1), justification='center', font='Helvetica 20')],
-          [sg.Canvas(size=(400, 200), key='canvas')],
-          [sg.Button('Exit', size=(10, 2), pad=((10, 0), 3), font='Helvetica 14')]]
+    def loop(self):
+        self.master.after(TIMESTEP, self.loop)
+        if len(self.X) >= MAX_IDX:
+            self.X.popleft()
+            self.Y.popleft()
+        try:
+            self.X.append(self.X[-1]+TIMESTEP) # -1: last element
+            self.axis.set_xlim(min(self.X), max(self.X))
+        except IndexError:
+            self.X.append(0) # first element
+        self.Y.append(random.uniform(0.0, 2.7))
+        self.axis.set_ylim(min(self.Y)-0.25, max(self.Y)+0.25)
+        self.axis.grid(which='both')
+        self.axis.plot(self.X, self.Y, color='blue')
+        self.canvas.draw()
+        #print(f"{len(self.X)}\t{self.X[-1]:.1f}, {self.Y[-1]:.1f}")
 
-# create the window and show it without the plot    
-
-
-window = sg.Window('Demo Application - Embedding Matplotlib In PySimpleGUI', layout, finalize=True)
-# needed to access the canvas element prior to reading the window
-
-canvas_elem = window['canvas']
-
-graph = FigureCanvasTkAgg(fig, master=canvas_elem.TKCanvas)
-canvas = canvas_elem.TKCanvas
-
-dpts = [randint(0, 10000)/10000 for x in range(10000)]
-# Our event loop      
-for i in range(len(dpts)):
-    event, values = window.read(timeout=20)
-    if event == 'Exit' or event == sg.WIN_CLOSED:
-        exit(69)
-
-    ax.cla()
-    ax.grid()
-
-    ax.plot(range(20), dpts[i:i + 20], color='purple')
-    graph.draw()
-    figure_x, figure_y, figure_w, figure_h = fig.bbox.bounds
-    figure_w, figure_h = int(figure_w), int(figure_h)
-    photo = Tk.PhotoImage(master=canvas, width=figure_w, height=figure_h)
-
-    canvas.create_image(400 / 2, 200 / 2, image=photo)
-
-    figure_canvas_agg = FigureCanvasAgg(fig)
-    figure_canvas_agg.draw()
-
-    tkagg.blit(photo, figure_canvas_agg.get_renderer()._renderer, colormode=2)      
+root = tk.Tk()
+root.title("Moving Plot Demo")
+gui = GUI(root)
+root.mainloop()

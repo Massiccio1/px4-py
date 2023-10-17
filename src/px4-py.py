@@ -77,6 +77,8 @@ class OffboardControl(Node):
         
         self.commander_arm_sub = self.create_subscription(
             CommanderArm, '/com/in/arm', self.commander_arm_callback, qos_profile)
+        self.commander_arm_sub = self.create_subscription(
+            CommanderArm, '/com/in/force_disarm', self.commander_force_disarm_callback, qos_profile)
         self.commander_mode_sub = self.create_subscription(
             CommanderMode, '/com/in/mode', self.commander_mode_callback, qos_profile)
         self.commander_action_sub = self.create_subscription(
@@ -133,6 +135,16 @@ class OffboardControl(Node):
             self.vehicle_start()
         else:
             self.disarm()
+            
+    def commander_force_disarm_callback(self,msg):
+        """comamnder force disarm"""
+        logging.info("gforce disarm from ros callback")
+        if not msg.arm:
+            self.publish_vehicle_command(
+                VehicleCommand.VEHICLE_CMD_DO_FLIGHTTERMINATION
+                param1=1.0
+            )
+        
         
     def commander_mode_callback(self, msg):
         """comamnder mode callback"""

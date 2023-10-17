@@ -29,21 +29,25 @@ from px4_msgs.msg import OffboardControlMode,BatteryStatus, TrajectorySetpoint, 
 from commander_msg.msg import CommanderAll, CommanderPathPoint ,CommanderArm, CommanderMode, CommanderAction
 
 
-from tkinter import *
-from random import randint
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, FigureCanvasAgg
-from matplotlib.figure import Figure
-import matplotlib.backends.tkagg as tkagg
-import tkinter as Tk
+
+# import tkinter as tk
+# import matplotlib.pyplot as plt
+# from matplotlib.figure import Figure
+# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+# from collections import deque
 
 from random import randint
 import logging
 import threading, _thread
+from threading import Event
+
 
 logging.basicConfig(level=logging.DEBUG)
-GRAPH_SIZE = (400,200)
+GRAPH_SIZE = (100,100)
 GRAPH_STEP_SIZE = 5
-
+TIMESTEP=100
+MAX_IDX=100
 
 class GUI(Node):
 
@@ -79,6 +83,8 @@ class GUI(Node):
 
         self.commander_arm_pub= self.create_publisher(
             CommanderArm, '/com/in/arm', qos_profile)
+        self.commander_force_disarm_pub= self.create_publisher(
+            CommanderArm, '/com/in/force_disarm', qos_profile)
         self.commander_mode_pub= self.create_publisher(
             CommanderMode, '/com/in/mode', qos_profile)
         self.commander_action_pub= self.create_publisher(
@@ -132,15 +138,19 @@ class GUI(Node):
             [sg.Text()]
         ]
         
+        status=[
+            [sg.StatusBar("drone: UNKNOWN", key="arm_text"),sg.StatusBar("commander: DISCONNECTED", key="commander_status"),sg.StatusBar('failsafe status: UNKNOWN', key="failsafe_text"),sg.StatusBar('offboard signal: UNKNOWN', key="offboard_text")],
+            [],
+        ]
+        
         essential=[
-                [sg.StatusBar("drone: UNKNOWN", key="arm_text"),sg.StatusBar("commander: DISCONNECTED", key="commander_status")],
+                
                 [sg.Button('ARM', key="arm_button"),sg.Button('DISARM', key="disarm_button")],
                 [sg.Button('TAKEOFF', key="takeoff_button"),sg.Button('LAND', key="land_button")]
         ]
         
         stop=[
-            [sg.StatusBar('failsafe status: UNKNOWN', key="failsafe_text")],
-            [sg.Button("STOP", key="btn_stop",size=(5,5))]
+            [sg.Button("STOP", key="btn_stop",size=(5,5)), sg.Button("FORCE DISARM", key="btn_force_disarm",size=(5,5))]
         ]
         
         mode = [
@@ -175,7 +185,7 @@ class GUI(Node):
             [sg.Text('Vehicle status will be displayed here', key="tab_status")]
         ]
         tab_battery = [
-            [sg.Text('Vehicle battery info will be displayed here', key="tab_battery")]
+            [sg.Text('Vehicle battery info will be displayed here', key="tab_battery", size=(20,40))]
         ]
                 
         pad_frame=[
@@ -201,6 +211,7 @@ class GUI(Node):
         tabs_r = sg.TabGroup([[sg.Tab('Auto',mode), sg.Tab('Manual', pad_frame)]])
         #right_frame= sg.Frame('Commands', [sg.Frame("core", essential), sg.Frame("Mode",mode)]    )
         right_layout= [
+            [sg.Frame("", status)],
             [sg.Frame("", essential),sg.Frame("", stop),sg.Frame("", battery_layout)],
             [sg.Frame("",[[tabs_r]])],
             
@@ -220,11 +231,11 @@ class GUI(Node):
 
         #self.window = sg.Window('Commander GUI', sg.Frame('controller',essential))
         self.window = sg.Window('Commander GUI', layout,finalize=True)
-
+        self.event = Event()
         t=threading.Thread(target=self.window_thread)
-        t=threading.Thread(target=self.end)
+        self.spin_t=threading.Thread(target=self.end) #per gui
         #t.setDaemon(True)
-        t.start()
+        self.spin_t.start()
         
         self.window_thread()
         
@@ -232,71 +243,69 @@ class GUI(Node):
 
     def window_thread(self):
         
-        x_graph = lastx = lasty = 0
-        #one time config
-        g1=self.window['graph_1']
-        g2=self.window['graph_2']
+        # x_graph = lastx = lasty = 0
+        # #one time config
+        # g1=self.window['graph_1']
+        # g2=self.window['graph_2']
         
-        fig=Figure(figsize=(4,4), dpi=80)
-        
-        
-        ax = fig.add_subplot(111)
-        ax.set_xlabel("X axis")
-        ax.set_ylabel("Y axis")
-        ax.grid()
+        # self.X = deque()
+        # self.Y = deque()
+        # self.fig = Figure(figsize = (4, 3))
+        # self.axis = self.fig.add_subplot(111)
+        # self.axis.set_xlabel("Timestamp [s]")
+        # self.axis.set_ylabel("Error to Setpoint [m]")
+        # self.axis.grid(visible=True)
+
+        # self.canvas = FigureCanvasTkAgg(self.fig, master = g2.TKCanvas)
+        # self.canvas._tkcanvas.pack(side = tk.BOTTOM, fill = tk.BOTH, expand = 0)
         
         error_buffer=[]
-        graph = FigureCanvasTkAgg(fig, master=g1.TKCanvas)
-        canvas = g2.TKCanvas
-        
         #graph.switch_backend('agg')
         
         while True:
             
             # This is the code that reads and updates your window
-            event, values = self.window.read(timeout=1000)
+            event, values = self.window.read(timeout=100)
             
             if event in (sg.WIN_CLOSED, 'Quit'):
+                self.event.set()
+                self.window.Close()
                 break
             
             #redraw graphs
-            step_size = values['graph_speed']
-            scale = values['graph_scale']
+            # step_size = values['graph_speed']
+            # scale = values['graph_scale']
             
-            y_graph=self.pose_error()*scale/100 +10
-            y_graph2=self.pose_error()*scale/100 +10
+            # y_graph=self.pose_error()*scale/100 +10
+            # y_graph2=self.pose_error()*scale/100 +10
             
-            scale_line=g1.draw_line((0, self.max_error*scale/100 +10),(GRAPH_SIZE[0], self.max_error*scale/100 +10), width = 1)
-            g1.DrawLine((0, 10), (GRAPH_SIZE[0], 10), width=1)
+            # scale_line=g1.draw_line((0, self.max_error*scale/100 +10),(GRAPH_SIZE[0], self.max_error*scale/100 +10), width = 1)
+            # g1.DrawLine((0, 10), (GRAPH_SIZE[0], 10), width=1)
             
-            #y_graph = randint(0,GRAPH_SIZE[1])*scale/100        # get random point for graph
-            if x_graph < GRAPH_SIZE[0]:               # if still drawing initial width of graph
-                g1.DrawLine((lastx, lasty), (x_graph, y_graph), color="red", width=2)
-            else:                               # finished drawing full graph width so move each time to make room
-                g1.Move(-step_size, 0)
-                g1.draw_line((lastx, lasty), (x_graph, y_graph), color="red", width=2)
-                x_graph -= step_size
-            lastx, lasty = x_graph, y_graph
-            x_graph += step_size
+            # #y_graph = randint(0,GRAPH_SIZE[1])*scale/100        # get random point for graph
+            # if x_graph < GRAPH_SIZE[0]:               # if still drawing initial width of graph
+            #     g1.DrawLine((lastx, lasty), (x_graph, y_graph), color="red", width=2)
+            # else:                               # finished drawing full graph width so move each time to make room
+            #     g1.Move(-step_size, 0)
+            #     g1.draw_line((lastx, lasty), (x_graph, y_graph), color="red", width=2)
+            #     x_graph -= step_size
+            # lastx, lasty = x_graph, y_graph
+            # x_graph += step_size
             
-            if error_buffer:
+            # if error_buffer:
 
-                ax.cla()
-                ax.grid()
-
-                ax.plot(range(len(error_buffer)), error_buffer, color='purple')
-                graph.draw()
-                figure_x, figure_y, figure_w, figure_h = fig.bbox.bounds
-                figure_w, figure_h = int(GRAPH_SIZE[0]), int(GRAPH_SIZE[1])
-                photo = Tk.PhotoImage(master=canvas, width=figure_w, height=figure_h)
-
-                canvas.create_image(GRAPH_SIZE[0]/2, GRAPH_SIZE[1]/2, image=photo)
-
-                figure_canvas_agg = FigureCanvasAgg(fig)
-                figure_canvas_agg.draw()
-
-                tkagg.blit(photo, figure_canvas_agg.get_renderer()._renderer, colormode=2)      
-                
+            #     if len(self.X) >= MAX_IDX:
+            #         self.X.popleft()
+            #         #self.Y.popleft()
+            #     try:
+            #         self.X.append(self.X[-1]+TIMESTEP/100) # -1: last element
+            #         self.axis.set_xlim(min(self.X), max(self.X))
+            #     except IndexError:
+            #         self.X.append(0) # first element
+            #     #self.Y.append(self.pose_error())
+            #     self.axis.set_ylim(min(error_buffer)-0.25, max(error_buffer)+0.25)
+            #     self.axis.plot(self.X, error_buffer, color='blue')
+            #     self.canvas.draw()
                         
             ##rip python3.8
             #match event:
@@ -324,6 +333,14 @@ class GUI(Node):
                 dict_failsafe={
                     False:"failsafe: FALSE",
                     True: "failsafe: TRUE"
+                }
+                dict_offboard={
+                    False:"offboard: CONNECTED",
+                    True: "offboard: LOST"
+                }
+                dict_color_offboard={
+                    False:"green",
+                    True: "red"
                 }
                 dict_color_failsafe={
                     False:"green",
@@ -356,6 +373,8 @@ class GUI(Node):
                     self.window["arm_text"].update(background_color=dict_arm_color[self.vehicle_status.arming_state])
                     self.window["failsafe_text"].update(dict_failsafe[self.vehicle_status.failsafe])
                     self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
+                    self.window["offboard_text"].update(dict_offboard[self.failsafe.offboard_control_signal_lost])
+                    self.window["offboard_text"].update(background_color=dict_color_offboard[self.failsafe.offboard_control_signal_lost])
                     self.window["tab_lp"].update(self.parse_vlp())
                     self.window["tab_status"].update(self.parse_status())
                     self.window["tab_battery"].update(self.parse_battery())
@@ -403,6 +422,9 @@ class GUI(Node):
                 
             elif event== "btn_stop":
                 self.stop()
+                
+            elif event== "btn_force_disarm":
+                self.force_disarm()
             
             #
             elif "pad" in event:
@@ -423,9 +445,9 @@ class GUI(Node):
             
 
         logging.info("window closing")
-        self.window.close()
+        #self.window.close()
         self.exit=True
-        _thread.interrupt_main()
+        #_thread.interrupt_main()
         exit(0)
     
     def vehicle_local_position_callback(self, vehicle_local_position):
@@ -505,6 +527,13 @@ class GUI(Node):
         logging.info("sent arm command")
         
     def disarm(self):
+        msg = CommanderArm()
+        msg.timestamp = self.now()
+        msg.arm=False
+        self.commander_arm_pub.publish(msg)
+        logging.info("sent disarm command")
+        
+    def force_disarm(self):
         msg = CommanderArm()
         msg.timestamp = self.now()
         msg.arm=False
