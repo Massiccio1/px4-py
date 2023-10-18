@@ -150,7 +150,7 @@ class OffboardControl(Node):
         """comamnder mode callback"""
         logging.info("ros callback for mode")
         if msg.ready == False:
-            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z)
+            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z, self.vehicle_local_position.heading)
         
         self.ready=msg.ready
         self.routine = msg.routine
@@ -205,7 +205,7 @@ class OffboardControl(Node):
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.offboard_control_mode_publisher.publish(msg)
 
-        logging.info("heartbeat sent")
+        #logging.info("heartbeat sent")
         
     def publish_position_setpoint(self, x: float, y: float, z: float, yaw=None):
         """Publish the trajectory setpoint."""
@@ -292,23 +292,32 @@ class OffboardControl(Node):
         self.arm()
         self.ready=False
     
+    def goto(self,xyz,yaw,speed,yaw_speed,time):
+        print("todo goto")
+        
+    def goto_thread(self,xyz,yaw,speed,yaw_speed,time):
+        print("todo goto thread")
+    
     def takeoff(self):
         logging.info("taking off")
         
         self.ready = False
         
-        self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height,self.vehicle_local_position.heading)
+        if self.vehicle_local_position.z > self.takeoff_height: #NED frame
+        
+            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height,self.vehicle_local_position.heading)
 
-        if self.vehicle_local_position.z < self.takeoff_height*0.95:
-            #da qui decido cosa fare
-            self.ready=True
-            
-            self.routine = config.routine
-            self.path= config.path
-            self.spin= config.spin
-            self.updown = config.updown
-
-
+            if self.vehicle_local_position.z < self.takeoff_height*0.95:
+                #da qui decido cosa fare
+                self.ready=True
+                
+                self.routine = config.routine
+                self.path= config.path
+                self.spin= config.spin
+                self.updown = config.updown
+        
+        else: 
+            logging.info("takeoff rejected, vehicle aleady in air")
 
     def dist(self,t1,t2):
         # print("p1: ",t1)
