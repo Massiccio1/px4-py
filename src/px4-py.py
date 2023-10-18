@@ -12,6 +12,8 @@ from std_msgs.msg import Float64MultiArray
 import config
 import random
 import logging
+import threading
+import time
 
 logging.basicConfig(level=config.log)
 
@@ -20,7 +22,6 @@ class OffboardControl(Node):
 
     def __init__(self) -> None:
         super().__init__('offboard_control_takeoff_and_land')
-        self.test=0
         self.procedure_time=0
         self.takeoff_height = config.takeoff_height
 
@@ -41,6 +42,8 @@ class OffboardControl(Node):
         self.tic=0        
         self.base = [0.0,0.0,-1.0] 
         self.path_index = -1
+        
+       
         
         self.spin_rad=config.spin_rad
 
@@ -93,7 +96,7 @@ class OffboardControl(Node):
         
 
         # Create a timer to publish control commands
-        self.timer = self.create_timer(0.1, self.timer_callback)
+        self.timer = self.create_timer(self.dt, self.timer_callback)
         
         logging.debug("init complete")
 
@@ -184,7 +187,8 @@ class OffboardControl(Node):
         logging.info("ros callback for action")
         ops = {
             "takeoff": self.takeoff,
-            "land": self.land
+            "land": self.land,
+            "test": self.test
         }
         operation = ops.get(action.action, self.action_error)
 
@@ -206,7 +210,7 @@ class OffboardControl(Node):
         self.offboard_control_mode_publisher.publish(msg)
 
         #logging.info("heartbeat sent")
-        
+             
     def publish_position_setpoint(self, x: float, y: float, z: float, yaw=None):
         """Publish the trajectory setpoint."""
         
@@ -288,15 +292,64 @@ class OffboardControl(Node):
 
     def vehicle_start(self):
         self.engage_offboard_mode()
-        self.base = [self.vehicle_local_position.x,self.vehicle_local_position.y, self.vehicle_local_position.z ]
+        self.base = [self.vehicle_local_position.x,
+                     self.vehicle_local_position.y, 
+                     self.vehicle_local_position.z
+                     ]
         self.arm()
         self.ready=False
     
-    def goto(self,xyz,yaw,speed,yaw_speed,time):
+    def goto(self,xyz,yaw=None,speed=None,time=None):
         print("todo goto")
+        if yaw == None:
+            yaw = self.vehicle_local_position.heading
+        if speed == None:
+            speed=5
+        if time == None:
+            time=5
+        t=threading.Thread(target=self.goto_thread,args=(xyz,yaw,speed,time))
+        t.start()
+            
         
-    def goto_thread(self,xyz,yaw,speed,yaw_speed,time):
+    def goto_thread(self,xyz,yaw,time_t,blank=None):
         print("todo goto thread")
+        delta = np.array([xyz[0]-self.vehicle_local_position.x,  
+                          xyz[1]-self.vehicle_local_position.y, 
+                          xyz[2]-self.vehicle_local_position.z,
+                          yaw-self.vehicle_local_position.heading
+                         ])
+        start=np.array([
+            self.vehicle_local_position.x,
+            self.vehicle_local_position.y,
+            self.vehicle_local_position.z,
+            self.vehicle_local_position.heading
+        ])
+        # minT=0
+        # maxT=time
+        # M= np.array([1, minT, pow(minT,2), pow(minT,3),
+        #         0 , 1   , 2*minT,    3*pow(minT,2),
+        #         1, maxT, pow(maxT,2), pow(maxT,3),
+        #         0 , 1   ,2*maxT,    3*pow(maxT,2)]).reshape(4,4)
+        # A=[]
+        # for i in range(4):
+        #     b = np.array([0,0,delta[i],0])  #s0,v0,sf,vf
+        #     a = np.linalg.pinv(M)*b
+        #     #start from zero and get to delta
+        #     A.append(a)
+        max_step=time_t*self.dt*1000
+        for i in range(int(max_step)):
+            factor = i/max_step
+            target = start+delta*factor
+            if not self.ready:
+                return 0
+            self.publish_position_setpoint(
+                target[0],
+                target[1],
+                target[2],
+                target[3],
+                )
+            time.sleep(self.dt)
+        logging.info("end of path")
     
     def takeoff(self):
         logging.info("taking off")
@@ -443,6 +496,14 @@ class OffboardControl(Node):
     def routine(self):
         print("todo")
         return 0
+    
+    def test(self):
+        target =np.array([
+            self.vehicle_local_position.x+random.randint(-5,5),
+            self.vehicle_local_position.y+random.randint(-5,5),
+            self.vehicle_local_position.z-random.randint(-10,10)/10
+        ])
+        self.goto(target)
         
 
 def main(args=None) -> None:

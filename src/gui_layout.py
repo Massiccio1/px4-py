@@ -54,7 +54,10 @@ class gui_layout:
         ]
         
         stop=[
-            [sg.Button("STOP", key="btn_stop",size=(5,5)), sg.Button("KILL", key="btn_force_disarm",size=(5,5), button_color="dark red")]
+            [sg.Button("STOP", key="btn_stop",size=(5,5)), 
+             sg.Button("KILL", key="btn_force_disarm",size=(5,5), button_color="dark red"),
+             sg.Button("TEST", key="btn_test",size=(5,5), button_color="dark red")
+             ]
         ]
         
         mode = [

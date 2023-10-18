@@ -322,6 +322,8 @@ class GUI(Node):
                 
             elif event== "btn_force_disarm":
                 self.force_disarm()
+            elif event== "btn_test":
+                self.test()
             
             #
             elif "pad" in event:
@@ -715,6 +717,10 @@ class GUI(Node):
             return dist
         except:
             return 0
+    
+    def test(self):
+        self.action("test")
+    
     def end(self):
         rclpy.spin(self)
         self.destroy_node()
