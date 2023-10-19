@@ -258,20 +258,42 @@ class GUI(Node):
                 # logging.info(self.delta_hr)
                 # logging.debug("difference")
                 # logging.debug(diff)
-                if diff<2000:#1.5 secondi arbitrari
+                if diff<2000:#2 secondi arbitrari
                     com_stat="commander: CONNECTED"
                     color_stat = "green"
+                unknown_color="DimGrey"
                 try:
                     self.window["commander_status"].update(com_stat)
                     self.window["commander_status"].update(background_color=color_stat)
-                    self.window["arm_text"].update(dict_arm[self.vehicle_status.arming_state])
-                    self.window["arm_text"].update(background_color=dict_arm_color[self.vehicle_status.arming_state])
-                    self.window["failsafe_text"].update(dict_failsafe[self.vehicle_status.failsafe])
-                    self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
-                    self.window["offboard_text"].update(dict_offboard[self.failsafe.offboard_control_signal_lost])
-                    self.window["offboard_text"].update(background_color=dict_color_offboard[self.failsafe.offboard_control_signal_lost])
-                    self.window["preflight_text"].update(dict_preflight[self.vehicle_status.pre_flight_checks_pass])
-                    self.window["preflight_text"].update(background_color=dict_color_preflight[self.vehicle_status.pre_flight_checks_pass])
+                    
+                    if not self.old_msg(self.vehicle_status):
+                        
+                        self.window["arm_text"].update(dict_arm[self.vehicle_status.arming_state])
+                        self.window["arm_text"].update(background_color=dict_arm_color[self.vehicle_status.arming_state])
+                        
+                        self.window["failsafe_text"].update(dict_failsafe[self.vehicle_status.failsafe])
+                        self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
+                        
+                        self.window["preflight_text"].update(dict_preflight[self.vehicle_status.pre_flight_checks_pass])
+                        self.window["preflight_text"].update(background_color=dict_color_preflight[self.vehicle_status.pre_flight_checks_pass])
+                    else:
+                        self.window["arm_text"].update("drone: UNKNOWN")
+                        self.window["arm_text"].update(background_color=unknown_color)
+                        
+                        self.window["failsafe_text"].update("failsafe: UNKNOWN")
+                        self.window["failsafe_text"].update(background_color=unknown_color)
+                        
+                        self.window["preflight_text"].update("preflight checks: UNKNOWN")
+                        self.window["preflight_text"].update(background_color=unknown_color)
+                        
+                    if not self.old_msg(self.failsafe, verbose=True):
+                        self.window["offboard_text"].update(dict_offboard[self.failsafe.offboard_control_signal_lost])
+                        self.window["offboard_text"].update(background_color=dict_color_offboard[self.failsafe.offboard_control_signal_lost])
+                    else:
+                        self.window["offboard_text"].update("offboard: UNKNOWN")
+                        self.window["offboard_text"].update(background_color=unknown_color)
+                        
+                  
                     self.window["tab_lp"].update(self.parse_vlp())
                     self.window["tab_status"].update(self.parse_status())
                     self.window["tab_battery"].update(self.parse_battery())
@@ -372,9 +394,29 @@ class GUI(Node):
     
     def trajectory_setpoint_callback(self, msg):
         self.setpoint_position = msg.position
+        self.setpoint_position_yaw = msg.yaw
     
     def find_yaw(self,x1,y1,x2,y2):
         return -np.arctan2(x2-x1,y2-y1)-np.pi/2
+    
+    def old_msg(self,msg,verbose=False):
+        now = self.now()
+        diff = (now-msg.timestamp)//1000#milliseconds
+        
+        # logging.info("new elta hr\n-------------------")
+        # logging.info(self.last_heartbeat)
+        # logging.info(now)
+        # logging.info(diff)
+        # logging.info(self.delta_hr)
+        # logging.debug("difference")
+        # logging.debug(diff)
+        if diff<2000:#2 secondi arbitrari
+            
+            return False
+        if verbose:
+            logging.info("old message detected")
+        return True
+        
     
     def publish_position_setpoint(self, x: float, y: float, z: float, yaw=None):
         """Publish the trajectory setpoint."""
@@ -451,6 +493,7 @@ class GUI(Node):
         msg.path=values["rd_path"]
         msg.spin=values["rd_spin"]
         msg.updown=values["rd_updown"]
+        #msg.goto=values["rd_goto"]
         
         #msg.theta = values["theta"]
         msg.radius = values["radius"]
@@ -599,12 +642,14 @@ class GUI(Node):
         vlp=self.vehicle_local_position
         txt=""
         time="timestamp: "+ str(vlp.timestamp) + "\n"
-        pos=f'\nPOSITION\nx: {vlp.x:.3f} \ny:  {vlp.y:.3f} \nz:  {vlp.z:.3f}\n'
-        vel=f"\nVELOCITY\nvx: {vlp.vx:.3f}\nvy: {vlp.vy:.3f} \nvz: {vlp.vz:.3f}\n"
-        acc=f"\nACCELERATION\nax: {vlp.ax:.3f} \nay: {vlp.ay:.3f} \naz:  {vlp.az:.3f} \n"
-        dir=f"\nDIRECTION\nyaw: {vlp.heading:.3f} \n"
+        pos=f'\nPOSITION [m]\nx: {vlp.x:.3f} \ny:  {vlp.y:.3f} \nz:  {vlp.z:.3f}\n'
+        vel=f"\nVELOCITY [m/s]\nvx: {vlp.vx:.3f}\nvy: {vlp.vy:.3f} \nvz: {vlp.vz:.3f}\n"
+        acc=f"\nACCELERATION [m/s^2]\nax: {vlp.ax:.3f} \nay: {vlp.ay:.3f} \naz:  {vlp.az:.3f} \n"
+        dir=f"\nDIRECTION [rad]\nyaw: {vlp.heading:.3f} \n"
+        exyzh=self.pose_error_xyzh()
+        off=f"\nOFFSET [m] [rad]\nx: {exyzh[0]:.3f}\ny: {exyzh[1]:.3f}\nz: {exyzh[2]:.3f}\nyaw: {exyzh[3]:.3f}\n\ntotal: {self.pose_error():.3f}"
 
-        return time+pos+vel+acc+dir
+        return time+pos+vel+acc+dir+off
 
     def parse_gps(self):
         """uint64 timestamp		# time since system start (microseconds)
@@ -708,8 +753,8 @@ class GUI(Node):
             z2=self.setpoint_position[2]
         
             dist = math.dist([x1,y1,z1],self.setpoint_position)
-            logging.debug("dist")
-            logging.debug(dist)
+            #logging.debug("dist")
+            #logging.debug(dist)
             
             if dist > self.max_error:
                 self.max_error=dist
@@ -717,6 +762,27 @@ class GUI(Node):
             return dist
         except:
             return 0
+        
+    def pose_error_xyzh(self):
+        try:
+            x1=self.vehicle_local_position.x
+            y1=self.vehicle_local_position.y
+            z1=self.vehicle_local_position.z
+            h1=self.vehicle_local_position.heading
+            
+            x2=self.setpoint_position[0]
+            y2=self.setpoint_position[1]
+            z2=self.setpoint_position[2]
+            z2=self.setpoint_position[2]
+            h2=self.setpoint_position_yaw
+        
+            dist=np.array([x1,y1,z1,h1])    -   np.array([x2,y2,z2,h2])
+            logging.debug("dist xyzh")
+            logging.debug(dist)
+            
+            return dist
+        except:
+            return np.array([0.0,0.0,0.0,0.0])
     
     def test(self):
         self.action("test")

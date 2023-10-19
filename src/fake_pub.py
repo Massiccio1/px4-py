@@ -5,7 +5,7 @@ from px4_msgs.msg import VehicleOdometry, OffboardControlMode, TrajectorySetpoin
 from geometry_msgs.msg import PoseStamped
 from rclpy import qos
 
-
+import numpy as np
 import config
 import random
 import logging
@@ -55,11 +55,19 @@ class Converter(Node):
     def vehicle_odometry_callback(self, msg):
         """Callback function for vehicle odometry"""
         logging.debug("recived odometry")
-
+        new_msg=VehicleOdometry()
+        new_msg.position=msg.position
+        new_msg.q=msg.q
+        new_msg.velocity=msg.velocity
+        new_msg.angular_velocity=msg.angular_velocity
+        
         self.odo = msg
         self.sub_odo = self.sub_odo + 1
         
-        self.odometry_publisher.publish(self.odo)
+        #self.odo.velocity_variance=[np.Nan,np.Nan,np.Nan]
+        
+        #self.odometry_publisher.publish(new_msg)
+        #self.v_odometry_publisher.publish(new_msg)
         self.v_odometry_publisher.publish(self.odo)
 
 

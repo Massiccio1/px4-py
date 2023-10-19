@@ -1,5 +1,15 @@
 import logging 
-#circle procedureù
+
+
+MODE_NONE=0
+MODE_ROUTINE=1
+MODE_SPIN=2
+MODE_GOTO=3
+MODE_PATH=4
+MODE_UPDOWN=5
+
+
+#circle procedure
 dt = 0.1
 theta = 0.0
 radius = 2.0
@@ -17,6 +27,8 @@ updown=False
 #path procedure
 path_points=[0.0, 0.0, 0.0]
 path_index = -1
+
+
 
 #spin procedure
 spin_rad=0.05

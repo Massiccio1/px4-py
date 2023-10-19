@@ -56,23 +56,33 @@ class gui_layout:
         stop=[
             [sg.Button("STOP", key="btn_stop",size=(5,5)), 
              sg.Button("KILL", key="btn_force_disarm",size=(5,5), button_color="dark red"),
-             sg.Button("TEST", key="btn_test",size=(5,5), button_color="dark red")
+             sg.Button("TEST", key="btn_test",size=(5,5), button_color="dark goldenrod")
              ]
         ]
         
         mode = [
-            [sg.Radio('routine', 1, key= "rd_routine"),sg.Radio('path',  1, key = "rd_path"),sg.Radio('spin', 1, key = "rd_spin"),sg.Radio('updown', 1, key = "rd_updown"),sg.Radio('None', 1, key="rd_none",default=True)],
-            [sg.Button('Confirm', key="mode_button")],
+            [sg.Radio('spin', 1, key = "rd_spin"), sg.Radio('routine', 1, key= "rd_routine"),sg.Radio('goto', 1, key = "rd_goto"),sg.Radio('path',  1, key = "rd_path"),sg.Radio('updown', 1, key = "rd_updown"),sg.Radio('None', 1, key="rd_none",default=True)],
             [sg.Text("\nheight"),sg.Slider((1.0,20.0), key="height",default_value=2.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size),
              sg.Text("\nspin speed"),sg.Slider((0,slid.max_range), key="spin_speed",default_value=1.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size)],
             [sg.Text("\nradius"),sg.Slider((0,slid.max_radius), key="radius",default_value=2.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size),
             sg.Text("\nomega"),sg.Slider((0,slid.max_omega), key="omega",default_value=1.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size)],
+            [
+                sg.Text("goto"),
+                sg.Text("X:"),
+                sg.Input(key='x',size=(4,2)),
+                sg.Text("Y:"),
+                sg.Input(key='y',size=(4,2)),
+                sg.Text("Z:"),
+                sg.Input(key='Z',size=(4,2)),
+            ],
             [
                 sg.Text("Chose a path file"),
                 sg.Input(key='file_input'),
                 sg.FileBrowse(file_types=(("JSON Files", "*.json"), ("ALL Files", "*.*"),),key="file_browser"),
                 sg.Button("Load", key="file_load")
             ],
+            [sg.Button('Confirm', key="mode_button")],
+
             [sg.Table([], ['X','Y','Z'], vertical_scroll_only=True,expand_x=True,expand_y=False,key="table_path",num_rows=10,visible=False)]
         ]
         

@@ -36,12 +36,14 @@ class OffboardControl(Node):
         self.updown=False
         self.path =False
         self.spin=False
+        self.goto=False
         
         self.path_points=config.path_points
         self.pose=0
         self.tic=0        
         self.base = [0.0,0.0,-1.0] 
         self.path_index = -1
+        
         
        
         
@@ -299,10 +301,10 @@ class OffboardControl(Node):
         self.arm()
         self.ready=False
     
-    def goto(self,xyz,yaw=None,speed=None,time=None):
+    def goto_func(self,xyz,yaw=None,speed=None,time=None):
         print("todo goto")
-        if yaw == None:
-            yaw = self.vehicle_local_position.heading
+        # if yaw == None:
+        #     yaw = self.vehicle_local_position.heading
         if speed == None:
             speed=5
         if time == None:
@@ -336,18 +338,22 @@ class OffboardControl(Node):
         #     a = np.linalg.pinv(M)*b
         #     #start from zero and get to delta
         #     A.append(a)
-        max_step=time_t*self.dt*1000
+        max_step=int(time_t/self.dt)
         for i in range(int(max_step)):
+            logging.info("publish goto: ")
+            logging.info(i)
             factor = i/max_step
             target = start+delta*factor
-            if not self.ready:
-                return 0
+            # if self.ready:
+            #     logging.info("[goto thread] not ready")
+            #     return 0
             self.publish_position_setpoint(
                 target[0],
                 target[1],
                 target[2],
                 target[3],
                 )
+            
             time.sleep(self.dt)
         logging.info("end of path")
     
@@ -503,7 +509,7 @@ class OffboardControl(Node):
             self.vehicle_local_position.y+random.randint(-5,5),
             self.vehicle_local_position.z-random.randint(-10,10)/10
         ])
-        self.goto(target)
+        self.goto_func(target)
         
 
 def main(args=None) -> None:
