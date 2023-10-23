@@ -26,6 +26,8 @@ class Converter(Node):
         self.sub_odo=0
         self.sub_pose=0
         
+        self.dt=config.opti_to_px4_dt
+        
         
         # Configure QoS profile for publishing and subscribing
         qos_profile = QoSProfile(
@@ -54,7 +56,7 @@ class Converter(Node):
         
 
         # Create a timer to publish control commands
-        self.timer = self.create_timer(0.01, self.timer_callback)
+        self.timer = self.create_timer(self.dt, self.timer_callback)
         
         self.timer_status = self.create_timer(1.0, self.status_callback)
         
@@ -96,11 +98,11 @@ class Converter(Node):
         msg.velocity_frame=1 #NED frame
         msg.position=p
         msg.q=q
-        msg.velocity = self.odo.velocity
-        msg.angular_velocity = self.odo.angular_velocity
-        msg.position_variance = self.odo.position_variance
-        msg.orientation_variance = self.odo.orientation_variance
-        msg.velocity_variance = self.odo.velocity_variance
+        # msg.velocity = self.odo.velocity
+        # msg.angular_velocity = self.odo.angular_velocity
+        # msg.position_variance = self.odo.position_variance
+        # msg.orientation_variance = self.odo.orientation_variance
+        # msg.velocity_variance = self.odo.velocity_variance
         msg.quality = 1
 
 

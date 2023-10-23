@@ -111,7 +111,8 @@ class gui_layout:
         ]
         
         battery_layout=[
-            [sg.Text("Battery")],
+            [sg.Text("Battery:")],
+            [sg.Text("no info", key="battery_text")],
             [sg.ProgressBar(100, orientation='v',expand_x=True,s=(10,20), k='bar_battery')]
         ]
 

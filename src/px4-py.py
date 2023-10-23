@@ -157,7 +157,7 @@ class OffboardControl(Node):
         logging.info("ros callback for mode")
         if msg.ready == False:
             self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z, self.vehicle_local_position.heading)
-        self.mode = msg.mode
+        #self.mode = msg.mode
         self.ready=msg.ready
         self.routine = msg.routine
         self.path=msg.path

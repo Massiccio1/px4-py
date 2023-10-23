@@ -55,11 +55,20 @@ class Converter(Node):
     def vehicle_odometry_callback(self, msg):
         """Callback function for vehicle odometry"""
         logging.debug("recived odometry")
+        
         new_msg=VehicleOdometry()
         new_msg.position=msg.position
         new_msg.q=msg.q
         new_msg.velocity=msg.velocity
         new_msg.angular_velocity=msg.angular_velocity
+        
+        #static
+        # new_msg=VehicleOdometry()
+        # new_msg.position=[0.0,0.0,0.0]
+        # new_msg.q=[0.0,0.0,0.0,0.0]
+        # new_msg.velocity=[0.0,0.0,0.0]
+        # new_msg.angular_velocity=[0.0,0.0,0.0]
+        
         
         self.odo = msg
         self.sub_odo = self.sub_odo + 1

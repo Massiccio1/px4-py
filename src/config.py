@@ -37,9 +37,15 @@ spin_rad=0.05
 
 ##flight config
 #relative, negative means up (NED frame)
-takeoff_height = -1.0
+#absolute with optitrack, negative means up (NED frame)
+takeoff_height = -1.5
 cruising_speed = 0.5
 
 #gui
 gui = True
 log=logging.INFO
+
+
+############################################
+#opti-to-px4
+opti_to_px4_dt=0.02 #50 hz

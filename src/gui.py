@@ -240,7 +240,7 @@ class GUI(Node):
                     False:"green",
                     True: "red"
                 }
-                
+                gui_progress=0
                 
                 error_buffer.append(self.pose_error())
                 if len(error_buffer)>100:  #10 secondi di errore
@@ -250,6 +250,8 @@ class GUI(Node):
                 color_stat= "red"
                 now = self.now()
                 diff = (now-self.last_heartbeat)//1000#milliseconds
+                
+                gui_progress+=1
                 
                 # logging.info("new elta hr\n-------------------")
                 # logging.info(self.last_heartbeat)
@@ -262,46 +264,49 @@ class GUI(Node):
                     com_stat="commander: CONNECTED"
                     color_stat = "green"
                 unknown_color="DimGrey"
+                gui_progress+=1
                 try:
                     self.window["commander_status"].update(com_stat)
                     self.window["commander_status"].update(background_color=color_stat)
-                    
+                    gui_progress+=1
                     if not self.old_msg(self.vehicle_status):
                         
                         self.window["arm_text"].update(dict_arm[self.vehicle_status.arming_state])
                         self.window["arm_text"].update(background_color=dict_arm_color[self.vehicle_status.arming_state])
-                        
+                        gui_progress+=1
                         self.window["failsafe_text"].update(dict_failsafe[self.vehicle_status.failsafe])
                         self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
-                        
+                        gui_progress+=1
                         self.window["preflight_text"].update(dict_preflight[self.vehicle_status.pre_flight_checks_pass])
                         self.window["preflight_text"].update(background_color=dict_color_preflight[self.vehicle_status.pre_flight_checks_pass])
                     else:
                         self.window["arm_text"].update("drone: UNKNOWN")
                         self.window["arm_text"].update(background_color=unknown_color)
-                        
+                        gui_progress+=1
                         self.window["failsafe_text"].update("failsafe: UNKNOWN")
                         self.window["failsafe_text"].update(background_color=unknown_color)
-                        
+                        gui_progress+=1
                         self.window["preflight_text"].update("preflight checks: UNKNOWN")
                         self.window["preflight_text"].update(background_color=unknown_color)
-                        
+                        gui_progress+=1
                     if not self.old_msg(self.failsafe, verbose=True):
                         self.window["offboard_text"].update(dict_offboard[self.failsafe.offboard_control_signal_lost])
                         self.window["offboard_text"].update(background_color=dict_color_offboard[self.failsafe.offboard_control_signal_lost])
                     else:
                         self.window["offboard_text"].update("offboard: UNKNOWN")
                         self.window["offboard_text"].update(background_color=unknown_color)
-                        
+                    gui_progress+=1
                   
                     self.window["tab_lp"].update(self.parse_vlp())
                     self.window["tab_status"].update(self.parse_status())
                     self.window["tab_battery"].update(self.parse_battery())
                     self.window["bar_battery"].update(current_count=self.parse_battery_level())
-                    self.window["tab_gps"].update(self.parse_gps())
-
+                    self.window["battery_text"].update(str(self.parse_battery_level())+"%")
+                    #elf.window["tab_gps"].update(self.parse_gps())
+                    gui_progress+=1
                 except:
-                    #logging.error("no vehicle status yet")
+                    logging.error("error updating gui")
+                    logging.error(gui_progress)
                     asdasd=1
                 
         
@@ -387,6 +392,7 @@ class GUI(Node):
         self.gps=msg
         
     def failsafe_callback(self,msg):
+        #logging.debug("recived failsafe msg")
         self.failsafe=msg
         
     def battery_callback(self,msg):
@@ -400,21 +406,23 @@ class GUI(Node):
         return -np.arctan2(x2-x1,y2-y1)-np.pi/2
     
     def old_msg(self,msg,verbose=False):
+        
+        return False
+        
         now = self.now()
         diff = (now-msg.timestamp)//1000#milliseconds
         
-        # logging.info("new elta hr\n-------------------")
-        # logging.info(self.last_heartbeat)
-        # logging.info(now)
-        # logging.info(diff)
-        # logging.info(self.delta_hr)
-        # logging.debug("difference")
-        # logging.debug(diff)
+        logging.info("new msg\n-------------------")
+        logging.info(msg.timestamp)
+        logging.info(now)
+        logging.debug("difference")
+        logging.debug(diff)
         if diff<2000:#2 secondi arbitrari
             
             return False
         if verbose:
             logging.info("old message detected")
+            logging.info(diff)
         return True
         
     
