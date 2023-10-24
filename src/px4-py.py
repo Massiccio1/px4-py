@@ -14,6 +14,7 @@ import random
 import logging
 import threading
 import time
+#import multiprocessing
 
 logging.basicConfig(level=config.log)
 
@@ -43,8 +44,11 @@ class OffboardControl(Node):
         self.tic=0        
         self.base = [0.0,0.0,-1.0] 
         self.path_index = -1
-        self.mode=0
-        
+        self.mode=config.MODE_NONE
+        self.submode=""
+        self.mode_thread=threading.Thread()
+
+        self.distance = 0
         
        
         
@@ -150,31 +154,63 @@ class OffboardControl(Node):
                 VehicleCommand.VEHICLE_CMD_DO_FLIGHTTERMINATION,
                 param1=1.0
             )
-        
+     
         
     def commander_mode_callback(self, msg):
         """comamnder mode callback"""
         logging.info("ros callback for mode")
-        if msg.ready == False:
-            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.vehicle_local_position.z, self.vehicle_local_position.heading)
-        #self.mode = msg.mode
-        self.ready=msg.ready
-        self.routine = msg.routine
-        self.path=msg.path
-        self.spin=msg.spin
-        self.updown=msg.updown
-        self.height=msg.height
-        #self.theta=msg.theta
-        self.omega=msg.omega
-        self.radius=msg.radius
-        self.spin_rad=msg.spin_speed
-        self.path_points=self.decode_path_points(msg.points)
-        if len(self.path_points)>0:
-            self.path_index=msg.path_index
-            logging.info("loaded path")
-        else:
-            self.path_index=-2
-            logging.info("path invalid  ")
+        self.mode=msg.mode
+        while self.mode_thread.is_alive():
+            self.mode_thread.join()
+        logging.info("other process stopped")
+        self.mode_thread=threading.Thread(target=self.mode_callback_thread, args=(msg,))
+        self.mode_thread.start()
+        
+        
+        
+    
+    def mode_callback_thread(self, msg):
+        logging.info("mode callback process")
+        if msg.ready == False: #stop message
+            self.publish_position_setpoint(
+                self.vehicle_local_position.x,
+                self.vehicle_local_position.y,
+                self.vehicle_local_position.z,
+                self.vehicle_local_position.heading
+            )
+            
+        
+        
+        self.mode = msg.mode
+        mode_dict={
+            config.MODE_NONE: lambda: self.mode_none(),
+            config.MODE_ROUTINE: lambda: self.mode_routine(msg.f1, msg.f2,msg.f3),
+            config.MODE_SPIN: lambda: self.mode_spin(msg.f1,msg.f2),
+            config.MODE_GOTO: lambda: self.mode_goto(msg.fa1,msg.f1,msg.f2),
+            config.MODE_PATH: lambda: self.mode_path(msg.fa1),
+            config.MODE_UPDOWN: lambda: self.mode_updown(),
+            config.MODE_STOP: lambda: self.mode_stop()
+        }
+        
+        mode_dict[msg.mode]()
+        
+        # self.ready=msg.ready
+        # self.routine = msg.routine
+        # self.path=msg.path
+        # self.spin=msg.spin
+        # self.updown=msg.updown
+        # self.height=msg.height
+        # #self.theta=msg.theta
+        # self.omega=msg.omega
+        # self.radius=msg.radius
+        # self.spin_rad=msg.spin_speed
+        # self.path_points=self.decode_path_points(msg.points)
+        # if len(self.path_points)>0:
+        #     self.path_index=msg.path_index
+        #     logging.info("loaded path")
+        # else:
+        #     self.path_index=-2
+        #     logging.info("path invalid  ")
 
     def decode_path_points(self,points):
         # logging.debug("len msg points")
@@ -214,6 +250,8 @@ class OffboardControl(Node):
 
         #logging.info("heartbeat sent")
              
+    def publish_position_setpoint(self, xyz:list, yaw=None):
+        self.publish_position_setpoint(xyz[0],xyz[1],xyz[2],yaw)
     def publish_position_setpoint(self, x: float, y: float, z: float, yaw=None):
         """Publish the trajectory setpoint."""
         
@@ -227,6 +265,9 @@ class OffboardControl(Node):
         float32 yaw # euler angle of desired attitude in radians -PI..+PI
         float32 yawspeed # angular velocity around NED frame z-axis in radians/second
         """
+        
+        
+        
         if yaw==None:
             yaw = self.find_yaw(x,y,self.vehicle_local_position.x,self.vehicle_local_position.y)
         
@@ -239,6 +280,7 @@ class OffboardControl(Node):
         #msg.yawspeed = yawspeed
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.trajectory_setpoint_publisher.publish(msg)
+        print("spp:",x,y,z,yaw)
         #self.get_logger().info(f"Publishing position setpoints {[x, y, z]}")
     
     def commander_trajectory_setpoint_callback(self,msg):
@@ -315,48 +357,7 @@ class OffboardControl(Node):
             
         
     def goto_thread(self,xyz,yaw,time_t,blank=None):
-        print("todo goto thread")
-        delta = np.array([xyz[0]-self.vehicle_local_position.x,  
-                          xyz[1]-self.vehicle_local_position.y, 
-                          xyz[2]-self.vehicle_local_position.z,
-                          yaw-self.vehicle_local_position.heading
-                         ])
-        start=np.array([
-            self.vehicle_local_position.x,
-            self.vehicle_local_position.y,
-            self.vehicle_local_position.z,
-            self.vehicle_local_position.heading
-        ])
-        # minT=0
-        # maxT=time
-        # M= np.array([1, minT, pow(minT,2), pow(minT,3),
-        #         0 , 1   , 2*minT,    3*pow(minT,2),
-        #         1, maxT, pow(maxT,2), pow(maxT,3),
-        #         0 , 1   ,2*maxT,    3*pow(maxT,2)]).reshape(4,4)
-        # A=[]
-        # for i in range(4):
-        #     b = np.array([0,0,delta[i],0])  #s0,v0,sf,vf
-        #     a = np.linalg.pinv(M)*b
-        #     #start from zero and get to delta
-        #     A.append(a)
-        max_step=int(time_t/self.dt)
-        for i in range(int(max_step)):
-            logging.info("publish goto: ")
-            logging.info(i)
-            factor = i/max_step
-            target = start+delta*factor
-            # if self.ready:
-            #     logging.info("[goto thread] not ready")
-            #     return 0
-            self.publish_position_setpoint(
-                target[0],
-                target[1],
-                target[2],
-                target[3],
-                )
-            
-            time.sleep(self.dt)
-        logging.info("end of path")
+        sersdf=0
     
     def takeoff(self):
         logging.info("taking off")
@@ -443,48 +444,6 @@ class OffboardControl(Node):
             self.land()
             self.disarm()
         
-        
-        
-        if self.ready and self.path:
-            
-            if self.path_index==-2:
-                self.path=0 #path vuota o error, disattivo
-
-            if self.path_index==-1: #non acora impostato
-                self.path_points=self.read_path()
-                #print(self.path_points)
-                if self.path_points:
-                    #non vuota
-                    self.path_index=0
-                else:
-                    self.path_index=-2
-               #  if path.isem    
-            if self.ready and self.path_index >=0:
-                #print("goto; ", self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
-                self.publish_position_setpoint(self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
-                dist= self.dist([self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2]] ,self.vlp_to_array(self.vehicle_local_position))
-                print("dist: ",dist)
-                if dist < 0.2:
-                    self.path_index+=1
-                    if self.path_index==len(self.path_points):
-                        self.path=0
-                        logging.info("path finished")
-        if self.ready and self.spin:
-            self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.height,self.vehicle_local_position.heading+self.spin_rad)
-            logging.info("yaw: ")
-            logging.info(self.vehicle_local_position.heading+self.spin_rad)
-       			
-        if self.ready and self.routine:
-            self.traj_x = self.radius * np.cos(self.theta)
-            self.traj_y = self.radius * np.sin(self.theta)
-            # self.traj_x = 0.0
-            # self.traj_y = 0.0
-            #self.traj_z = -5.0 +  np.sin(self.theta*1.7)
-            self.traj_z = self.height
-
-            self.theta = self.theta + self.omega * self.dt
-            
-            self.publish_position_setpoint(self.traj_x, self.traj_y, self.traj_z)
 
             #print("fatto ", int(self.get_clock().now().nanoseconds / 1000000))
             # print("current posistion ", self.vehicle_local_position.x)
@@ -499,10 +458,190 @@ class OffboardControl(Node):
 
         if self.offboard_setpoint_counter < 11:
             self.offboard_setpoint_counter += 1
-
-    def routine(self):
-        print("todo")
+            
+    def wait_for_goal(self,goal:list):
+        current = [
+            self.vehicle_local_position.x,
+            self.vehicle_local_position.y,
+            self.vehicle_local_position.z
+            ]
+        
+        dist= self.dist(goal,current)
+        self.distance = dist
+        while dist > config.dist_threshold: #non acora arrivato a destinazione
+            # logging.info("distance:")
+            # logging.info(dist)
+            time.sleep(self.dt)
+        logging.info("destination reached")
         return 0
+    
+    def mode_stop(self):
+        logging.info("MODE: stop")
+        self.publish_position_setpoint(
+                self.vehicle_local_position.x,
+                self.vehicle_local_position.y,
+                self.vehicle_local_position.z,
+                self.vehicle_local_position.heading
+            )
+        return 0
+        
+    
+    def mode_none(self):
+        logging.info("MODE: none")
+        return 0
+
+    def mode_routine(self, omega, radius, height=None, theta=0):
+    #if self.ready and self.routine:
+    
+        logging.info("MODE: routine")
+        self.submode = ""
+        if height==None:
+            height = self.vehicle_local_position.z
+            #altezza attuale
+        while self.mode==config.MODE_ROUTINE:
+            traj_x = radius * np.cos(theta)
+            traj_y = radius * np.sin(theta)
+            # self.traj_x = 0.0
+            # self.traj_y = 0.0
+            #self.traj_z = -5.0 +  np.sin(self.theta*1.7)
+            traj_z = height
+
+            theta = theta + omega * self.dt
+            
+            self.publish_position_setpoint(traj_x, traj_y, traj_z)
+            
+            logging.info("routining")
+            
+            time.sleep(self.dt)
+            
+        logging.info("end of routine")
+        return 0
+    
+
+    def mode_goto(self,x:float,y:float,z:float,yaw=None,time_t=None):
+        self.mode_goto([x,y,z],yaw,time_t)
+        
+    def mode_goto(self,xyz:list,yaw=None,time_t=None):
+        logging.info("MODE: goto")
+        self.submode = "0%"
+        delta = np.array([xyz[0]-self.vehicle_local_position.x,  
+                          xyz[1]-self.vehicle_local_position.y, 
+                          xyz[2]-self.vehicle_local_position.z,
+                          yaw-self.vehicle_local_position.heading
+                         ])
+        start=np.array([
+            self.vehicle_local_position.x,
+            self.vehicle_local_position.y,
+            self.vehicle_local_position.z,
+            self.vehicle_local_position.heading
+        ])
+        # minT=0
+        # maxT=time
+        # M= np.array([1, minT, pow(minT,2), pow(minT,3),
+        #         0 , 1   , 2*minT,    3*pow(minT,2),
+        #         1, maxT, pow(maxT,2), pow(maxT,3),
+        #         0 , 1   ,2*maxT,    3*pow(maxT,2)]).reshape(4,4)
+        # A=[]
+        # for i in range(4):
+        #     b = np.array([0,0,delta[i],0])  #s0,v0,sf,vf
+        #     a = np.linalg.pinv(M)*b
+        #     #start from zero and get to delta
+        #     A.append(a)
+        max_step=int(time_t/self.dt)
+        for i in range(int(max_step)):
+            
+            if self.mode != config.MODE_GOTO:
+                logging.info("force quit from goto: ")
+                return -1
+            
+            logging.info("publish goto: ")
+            logging.info(i)
+            factor = i/max_step
+            target = start+delta*factor
+            # if self.ready:
+            #     logging.info("[goto thread] not ready")
+            #     return 0
+            self.publish_position_setpoint(
+                target[0],
+                target[1],
+                target[2],
+                target[3],
+                )
+            
+            time.sleep(self.dt)
+        
+        self.wait_for_goal(xyz)
+        
+        logging.info("end of goto")
+        
+        return 0
+
+    def mode_path(self,path=[],index=0):
+        
+        logging.info("MODE: path")
+        
+        if len(path)<=0:
+            logging.error("path empty")
+            return -1
+ 
+        for i, goal in enumerate(path):
+            #print("goto; ", self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
+            self.publish_position_setpoint(goal)
+            current = [
+                self.vehicle_local_position.x,
+                self.vehicle_local_position.y,
+                self.vehicle_local_position.z
+                ]
+            
+            dist= self.dist(goal,current)
+            
+            while dist > config.dist_threshold: #non acora arrivato a destinazione
+                
+                if self.mode != config.MODE_PATH:
+                    logging.info("force quit from path: ")
+                    return -1
+                
+                logging.info("distance:")
+                logging.info(dist)
+                time.sleep(self.dt)
+                
+            if dist < config.dist_threshold:
+                self.path_index+=1
+                if self.path_index==len(self.path_points):
+                    self.path=0
+                    logging.info("path finished")
+                    
+    
+    def mode_spin(self,omega, height=None):
+        
+        logging.info("MODE: spin")
+        
+        if height==None:
+            height = self.vehicle_local_position.z
+        
+        yaw=self.vehicle_local_position.heading
+            
+        while self.mode==config.MODE_SPIN:
+            
+            yaw = yaw + omega*self.dt
+            
+            self.publish_position_setpoint(
+                self.vehicle_local_position.x,
+                self.vehicle_local_position.y,
+                height,
+                yaw
+            )
+            #logging.info("yaw: ")
+            #logging.info(self.vehicle_local_position.heading+self.spin_rad)
+            time.sleep(self.dt)
+
+       	
+        logging.info("end of spin")
+    
+    def mode_updown(self):
+        logging.info("MODE: updown")
+        self.land()
+        logging.info("end of updown")
     
     def test(self):
         target =np.array([

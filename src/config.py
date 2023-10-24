@@ -7,8 +7,9 @@ MODE_SPIN=2
 MODE_GOTO=3
 MODE_PATH=4
 MODE_UPDOWN=5
+MODE_STOP=6
 
-
+dist_threshold=0.2
 #circle procedure
 dt = 0.1
 theta = 0.0

@@ -77,10 +77,11 @@ class gui_layout:
             ],
             [
                 sg.Text("Chose a path file"),
-                sg.Input(key='file_input'),
+                sg.Input(key='file_input',s=(20,1)),
                 sg.FileBrowse(file_types=(("JSON Files", "*.json"), ("ALL Files", "*.*"),),key="file_browser"),
                 sg.Button("Load", key="file_load")
             ],
+            
             [sg.Button('Confirm', key="mode_button")],
 
             [sg.Table([], ['X','Y','Z'], vertical_scroll_only=True,expand_x=True,expand_y=False,key="table_path",num_rows=10,visible=False)]
@@ -116,7 +117,7 @@ class gui_layout:
             [sg.ProgressBar(100, orientation='v',expand_x=True,s=(10,20), k='bar_battery')]
         ]
 
-        graph_layout = [  
+        graph_layout = [
             [sg.Text('Speed:', size=(20,1)),
              sg.Slider((1,30), default_value=5, orientation='h', key='graph_speed')],
             [sg.Text('Scale:', size=(20,1), ),

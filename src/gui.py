@@ -42,6 +42,7 @@ from random import randint
 import logging
 import threading, _thread
 from threading import Event
+import config
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -339,10 +340,6 @@ class GUI(Node):
                 logging.info("confirm mode button pressed with value: ",values)
                 self.changeMode(values)
                 
-            
-            elif event== "mode_button":
-                logging.info("confirm mode button pressed with value: ",values)
-                self.changeMode(values)
                 
             elif event== "btn_stop":
                 self.stop()
@@ -493,24 +490,41 @@ class GUI(Node):
         msg = CommanderMode()
         msg.timestamp = self.now()
         
-        msg.ready=True
+        msg.mode = config.MODE_NONE
+        
+        # msg.ready=True
+        # if values["rd_none"]:
+        #     msg.ready=False
+        
         if values["rd_none"]:
-            msg.ready=False
-        
-        msg.routine=values["rd_routine"]
-        msg.path=values["rd_path"]
-        msg.spin=values["rd_spin"]
-        msg.updown=values["rd_updown"]
-        #msg.goto=values["rd_goto"]
-        
-        #msg.theta = values["theta"]
-        msg.radius = values["radius"]
-        msg.omega = values["omega"]
-        msg.spin_speed = values["spin_speed"]
-        msg.height=-values["height"]
+            msg.mode=config.MODE_NONE
 
-        msg.points=self.path_to_ros2(self.window["table_path"].Values).points
-        msg.path_index=0
+        if values["rd_routine"]:
+            msg.mode=config.MODE_ROUTINE
+            msg.f1=values["omega"]
+            msg.f2=values["radius"]
+            msg.f3=-values["height"]
+            
+        if values["rd_path"]:
+            msg.mode=config.MODE_PATH
+            msg.points=self.path_to_ros2(self.window["table_path"].Values).points
+            
+        if values["rd_spin"]:
+            msg.mode = config.MODE_SPIN
+            msg.f1=values["spin_speed"]
+            msg.f2=-values["height"]
+            
+        if values["rd_updown"]:
+            msg.mode = config.MODE_UPDOWN
+            
+        if values["rd_goto"]:
+            msg.mode = config.MODE_GOTO
+            msg.fa1=[
+                
+            ]
+            ##todo yaw & time
+            #msg.f1= yaaw
+            #msg.f2 time
         
         self.commander_mode_pub.publish(msg)
         logging.info("sent change mode command")
@@ -533,17 +547,17 @@ class GUI(Node):
     def stop(self):
         msg = CommanderMode()
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        msg.mode = config.MODE_STOP
+        # msg.ready=False
         
-        msg.ready=False
-        
-        msg.routine=False
-        msg.path=False
-        msg.spin=False
-        msg.updown=False
-        #msg.theta = values["theta"]
-        msg.radius = 0.0
-        msg.omega = 0.0
-        msg.spin_speed = 0.0
+        # msg.routine=False
+        # msg.path=False
+        # msg.spin=False
+        # msg.updown=False
+        # #msg.theta = values["theta"]
+        # msg.radius = 0.0
+        # msg.omega = 0.0
+        # msg.spin_speed = 0.0
         
         self.commander_mode_pub.publish(msg)
     
