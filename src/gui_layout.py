@@ -73,7 +73,7 @@ class gui_layout:
                 sg.Text("Y:"),
                 sg.Input(key='y',size=(4,2)),
                 sg.Text("Z:"),
-                sg.Input(key='Z',size=(4,2)),
+                sg.Input(key='z',size=(4,2)),
             ],
             [
                 sg.Text("Chose a path file"),
@@ -93,6 +93,13 @@ class gui_layout:
             [sg.Submit(), sg.Cancel()]
         ] 
         
+        mode_display = [
+            [sg.Text('Mode')],      
+            [sg.StatusBar('UNKNOWN',key="mode_text",background_color="DimGrey")],      
+            [sg.StatusBar('UNKNOWN',key="submode_text",auto_size_text=True,background_color="DimGrey")],
+            [sg.Graph(GRAPH_SIZE, (0,0), GRAPH_SIZE, key='graph_hb', background_color='lightblue')]
+        ]
+        
         tab_lp = [
             [sg.Text('Local position will be displayed here', key="tab_lp")]
         ]
@@ -103,7 +110,7 @@ class gui_layout:
             [sg.Text('Vehicle status will be displayed here', key="tab_status")]
         ]
         tab_battery = [
-            [sg.Text('Vehicle battery info will be displayed here', key="tab_battery", size=(20,40))]
+            [sg.Text('Vehicle battery info will be displayed here', key="tab_battery")]
         ]
                 
         pad_frame=[
@@ -114,7 +121,7 @@ class gui_layout:
         battery_layout=[
             [sg.Text("Battery:")],
             [sg.Text("no info", key="battery_text")],
-            [sg.ProgressBar(100, orientation='v',expand_x=True,s=(10,20), k='bar_battery')]
+            [sg.ProgressBar(100, orientation='v',expand_x=True,s=(10,20),expand_y=True, k='bar_battery')]
         ]
 
         graph_layout = [
@@ -129,9 +136,19 @@ class gui_layout:
         tabs_l = sg.TabGroup([[sg.Tab('local position',tab_lp), sg.Tab('gps', tab_gps), sg.Tab('battery', tab_battery), sg.Tab("error graph", graph_layout),sg.Tab('status', tab_status)]],expand_y=True)
         tabs_r = sg.TabGroup([[sg.Tab('Auto',mode), sg.Tab('Manual', pad_frame)]])
         #right_frame= sg.Frame('Commands', [sg.Frame("core", essential), sg.Frame("Mode",mode)]    )
+        
+        arm_and_stop=[
+            [sg.Frame("", essential)],
+            [sg.Frame("", stop)]
+        ]
+        
         right_layout= [
             [sg.Frame("", status)],
-            [sg.Frame("", essential),sg.Frame("", stop),sg.Frame("", battery_layout)],
+            [
+                sg.Frame('',arm_and_stop),
+                sg.Frame('',mode_display, vertical_alignment='center',element_justification='top',expand_x=True,expand_y=True),
+                sg.Frame("", battery_layout,expand_y=True)
+            ],
             [sg.Frame("",[[tabs_r]])],
             
         ]

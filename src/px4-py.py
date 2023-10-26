@@ -32,26 +32,20 @@ class OffboardControl(Node):
         self.omega = config.omega
         self.height=self.takeoff_height
         
+        self.mode=config.MODE_NONE
+        
         self.ready = False
-        self.routine=False
-        self.updown=False
-        self.path =False
-        self.spin=False
-        self.goto=False
         
         self.path_points=config.path_points
         self.pose=0
         self.tic=0        
         self.base = [0.0,0.0,-1.0] 
         self.path_index = -1
-        self.mode=config.MODE_NONE
         self.submode=""
         self.mode_thread=threading.Thread()
 
         self.distance = 0
-        
        
-        
         self.spin_rad=config.spin_rad
 
         
@@ -75,8 +69,8 @@ class OffboardControl(Node):
         
         self.com_pub_all = self.create_publisher(
             CommanderAll, '/com/out/all', qos_profile)
-        self.com_pub_mode = self.create_publisher(
-            CommanderMode, '/com/out/mode', qos_profile)
+        # self.com_pub_mode = self.create_publisher(
+        #     CommanderMode, '/com/out/mode', qos_profile)
 
             
         # Create subscribers
@@ -159,27 +153,30 @@ class OffboardControl(Node):
     def commander_mode_callback(self, msg):
         """comamnder mode callback"""
         logging.info("ros callback for mode")
-        self.mode=msg.mode
+        self.mode=config.MODE_NONE
         while self.mode_thread.is_alive():
+            logging.info("stopping other processes")
             self.mode_thread.join()
+        self.mode=msg.mode
+        self.submode=""
         logging.info("other process stopped")
         self.mode_thread=threading.Thread(target=self.mode_callback_thread, args=(msg,))
         self.mode_thread.start()
-        
+        logging.info("thread mode started")
         
         
     
     def mode_callback_thread(self, msg):
         logging.info("mode callback process")
-        if msg.ready == False: #stop message
-            self.publish_position_setpoint(
-                self.vehicle_local_position.x,
-                self.vehicle_local_position.y,
-                self.vehicle_local_position.z,
-                self.vehicle_local_position.heading
-            )
-            
         
+        # if msg.ready == False: #stop message
+        #     self.publish_position_setpoint(
+        #         self.vehicle_local_position.x,
+        #         self.vehicle_local_position.y,
+        #         self.vehicle_local_position.z,
+        #         self.vehicle_local_position.heading
+        #     )
+            
         
         self.mode = msg.mode
         mode_dict={
@@ -187,12 +184,14 @@ class OffboardControl(Node):
             config.MODE_ROUTINE: lambda: self.mode_routine(msg.f1, msg.f2,msg.f3),
             config.MODE_SPIN: lambda: self.mode_spin(msg.f1,msg.f2),
             config.MODE_GOTO: lambda: self.mode_goto(msg.fa1,msg.f1,msg.f2),
-            config.MODE_PATH: lambda: self.mode_path(msg.fa1),
+            config.MODE_PATH: lambda: self.mode_path(msg.points),
             config.MODE_UPDOWN: lambda: self.mode_updown(),
             config.MODE_STOP: lambda: self.mode_stop()
         }
         
         mode_dict[msg.mode]()
+        self.submode=""
+        self.mode=config.MODE_NONE
         
         # self.ready=msg.ready
         # self.routine = msg.routine
@@ -252,6 +251,8 @@ class OffboardControl(Node):
              
     def publish_position_setpoint(self, xyz:list, yaw=None):
         self.publish_position_setpoint(xyz[0],xyz[1],xyz[2],yaw)
+        
+        
     def publish_position_setpoint(self, x: float, y: float, z: float, yaw=None):
         """Publish the trajectory setpoint."""
         
@@ -280,7 +281,7 @@ class OffboardControl(Node):
         #msg.yawspeed = yawspeed
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.trajectory_setpoint_publisher.publish(msg)
-        print("spp:",x,y,z,yaw)
+        #print("spp:",x,y,z,yaw)
         #self.get_logger().info(f"Publishing position setpoints {[x, y, z]}")
     
     def commander_trajectory_setpoint_callback(self,msg):
@@ -348,9 +349,9 @@ class OffboardControl(Node):
         print("todo goto")
         # if yaw == None:
         #     yaw = self.vehicle_local_position.heading
-        if speed == None:
+        if speed == None or speed==0.0:
             speed=5
-        if time == None:
+        if time == None or time==0.0:
             time=5
         t=threading.Thread(target=self.goto_thread,args=(xyz,yaw,speed,time))
         t.start()
@@ -358,6 +359,7 @@ class OffboardControl(Node):
         
     def goto_thread(self,xyz,yaw,time_t,blank=None):
         sersdf=0
+        return 0
     
     def takeoff(self):
         logging.info("taking off")
@@ -371,11 +373,7 @@ class OffboardControl(Node):
             if self.vehicle_local_position.z < self.takeoff_height*0.95:
                 #da qui decido cosa fare
                 self.ready=True
-                
-                self.routine = config.routine
-                self.path= config.path
-                self.spin= config.spin
-                self.updown = config.updown
+                print("todo guiless mode")
         
         else: 
             logging.info("takeoff rejected, vehicle aleady in air")
@@ -392,32 +390,17 @@ class OffboardControl(Node):
     def publish_commander(self):
         """published commander params for gui"""
         msg = CommanderAll()
-        
-        msg.dt=self.dt
-        msg.theta=self.theta
-        msg.radius=self.radius
-        msg.omega=self.omega
-        
-        msg.ready=self.ready
-        msg.base= self.base
-        msg.takeoff_height=self.takeoff_height
-        
-        msg.routine=self.routine
-        msg.pose=self.pose
-        msg.tic=self.tic
-        msg.path=self.path
-        msg.spin=self.spin
-        msg.updown=self.updown
-        
-        msg.gui = self.gui
-        msg.path_index=self.path_index
-        #msg.path_points=self.path_points
                 
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
-        msg.testint=random.randint(0,50)
-        msg.testbool=False
-        self.com_pub_all.publish(msg)
+        msg.mode = self.mode
+        msg.submode=self.submode
+        msg.ready = self.ready
+        msg.takeoff_height = self.takeoff_height
+        msg.dt = self.dt
+        msg.gui = self.gui
 
+        self.com_pub_all.publish(msg)
+        #logging.info("comamnder all published")
 
     def timer_callback(self) -> None:
         """Callback function for the timer."""
@@ -428,6 +411,7 @@ class OffboardControl(Node):
         if not self.gui and self.offboard_setpoint_counter == 10:
             self.vehicle_start()
             # self.routine = 0
+            self.mode = config.mode #guiless mode
 
         #if self.vehicle_local_position.z > self.takeoff_height and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
         if not self.ready and not self.gui and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
@@ -459,7 +443,7 @@ class OffboardControl(Node):
         if self.offboard_setpoint_counter < 11:
             self.offboard_setpoint_counter += 1
             
-    def wait_for_goal(self,goal:list):
+    def wait_for_goal(self,goal:list, mode):
         current = [
             self.vehicle_local_position.x,
             self.vehicle_local_position.y,
@@ -468,15 +452,27 @@ class OffboardControl(Node):
         
         dist= self.dist(goal,current)
         self.distance = dist
-        while dist > config.dist_threshold: #non acora arrivato a destinazione
-            # logging.info("distance:")
-            # logging.info(dist)
+        while dist > config.dist_threshold and self.mode == mode: #non acora arrivato a destinazione
+            current = [
+                self.vehicle_local_position.x,
+                self.vehicle_local_position.y,
+                self.vehicle_local_position.z
+                ]
+            
+            dist= self.dist(goal,current)
+            self.distance = dist
+            logging.info("distance:")
+            logging.info(dist)
             time.sleep(self.dt)
-        logging.info("destination reached")
+        if dist <= config.dist_threshold:
+            logging.info("destination reached")
+        elif self.mode != mode:
+            logging.info("mode changed, quitting waiting")
         return 0
     
     def mode_stop(self):
         logging.info("MODE: stop")
+        self.submode=""
         self.publish_position_setpoint(
                 self.vehicle_local_position.x,
                 self.vehicle_local_position.y,
@@ -498,6 +494,24 @@ class OffboardControl(Node):
         if height==None:
             height = self.vehicle_local_position.z
             #altezza attuale
+        traj_x = radius * np.cos(theta)
+        traj_y = radius * np.sin(theta)
+        base = [traj_x,traj_y,height]
+        current = [
+                self.vehicle_local_position.x,
+                self.vehicle_local_position.y,
+                self.vehicle_local_position.z
+                ]
+        dist = self.dist(base,current)
+        
+        self.mode_goto(
+            base,
+            mode=config.MODE_ROUTINE,
+            prefix="goto start ",
+            verbose=True,
+            time_t=dist #1m/s
+        )
+        logging.info("got to start, now routining")
         while self.mode==config.MODE_ROUTINE:
             traj_x = radius * np.cos(theta)
             traj_y = radius * np.sin(theta)
@@ -507,10 +521,11 @@ class OffboardControl(Node):
             traj_z = height
 
             theta = theta + omega * self.dt
+            theta = (theta + np.pi) % (2 * np.pi) - np.pi
             
             self.publish_position_setpoint(traj_x, traj_y, traj_z)
-            
-            logging.info("routining")
+            self.submode = f"theta: {theta:.2f}"
+            #logging.info("routining")
             
             time.sleep(self.dt)
             
@@ -518,17 +533,35 @@ class OffboardControl(Node):
         return 0
     
 
-    def mode_goto(self,x:float,y:float,z:float,yaw=None,time_t=None):
-        self.mode_goto([x,y,z],yaw,time_t)
+    def mode_goto(self,x:float,y:float,z:float,
+                  yaw=None,
+                  time_t=None,
+                  mode=config.MODE_GOTO,
+                  verbose=True,
+                  prefix=""):
+        self.mode_goto([x,y,z],yaw,time_t,mode,verbose,prefix)
         
-    def mode_goto(self,xyz:list,yaw=None,time_t=None):
+    def mode_goto(self,xyz:list,
+                  yaw=None,
+                  time_t=None,
+                  mode=config.MODE_GOTO,
+                  verbose=True,
+                  prefix=""):
         logging.info("MODE: goto")
         self.submode = "0%"
+        
+        if time_t==0.0 or time_t==None:
+            time_t=5
+        if yaw==None:
+            yaw = self.find_yaw(xyz[0],xyz[2],self.vehicle_local_position.x,self.vehicle_local_position.y)
+
+        #print("xyz: ",xyz)
         delta = np.array([xyz[0]-self.vehicle_local_position.x,  
                           xyz[1]-self.vehicle_local_position.y, 
                           xyz[2]-self.vehicle_local_position.z,
                           yaw-self.vehicle_local_position.heading
                          ])
+        
         start=np.array([
             self.vehicle_local_position.x,
             self.vehicle_local_position.y,
@@ -550,14 +583,16 @@ class OffboardControl(Node):
         max_step=int(time_t/self.dt)
         for i in range(int(max_step)):
             
-            if self.mode != config.MODE_GOTO:
-                logging.info("force quit from goto: ")
+            if self.mode != mode:#for other function that need a goto functionality
+                #logging.info("force quit from goto: ")
                 return -1
             
-            logging.info("publish goto: ")
-            logging.info(i)
-            factor = i/max_step
-            target = start+delta*factor
+            # logging.info("publish goto: ")
+            # logging.info(i)
+            progress = i/max_step
+            target = start+delta*progress
+            if verbose:
+                self.submode=f"{prefix}{(progress*100):.2f}%"
             # if self.ready:
             #     logging.info("[goto thread] not ready")
             #     return 0
@@ -570,7 +605,8 @@ class OffboardControl(Node):
             
             time.sleep(self.dt)
         
-        self.wait_for_goal(xyz)
+        # logging.info ("[goto] wait for goal")
+        # self.wait_for_goal(xyz, self.mode)
         
         logging.info("end of goto")
         
@@ -579,6 +615,7 @@ class OffboardControl(Node):
     def mode_path(self,path=[],index=0):
         
         logging.info("MODE: path")
+        print("path:",path)
         
         if len(path)<=0:
             logging.error("path empty")
@@ -586,31 +623,29 @@ class OffboardControl(Node):
  
         for i, goal in enumerate(path):
             #print("goto; ", self.base[0] + self.path_points[self.path_index][0], self.base[1] + self.path_points[self.path_index][1], self.base[2] + self.path_points[self.path_index][2])
-            self.publish_position_setpoint(goal)
+            self.submode = str(i+1) + "/" + str(len(path))
+            # self.publish_position_setpoint(
+            #         goal.points[0],
+            #         goal.points[1],
+            #         goal.points[2],
+            #     )
+            self.mode_goto(
+                    goal.points.tolist(),
+                    mode=config.MODE_PATH,
+                    verbose=True,
+                    prefix = self.submode+ " - "
+            )
             current = [
                 self.vehicle_local_position.x,
                 self.vehicle_local_position.y,
                 self.vehicle_local_position.z
                 ]
             
-            dist= self.dist(goal,current)
-            
-            while dist > config.dist_threshold: #non acora arrivato a destinazione
-                
-                if self.mode != config.MODE_PATH:
-                    logging.info("force quit from path: ")
-                    return -1
-                
-                logging.info("distance:")
-                logging.info(dist)
-                time.sleep(self.dt)
-                
-            if dist < config.dist_threshold:
-                self.path_index+=1
-                if self.path_index==len(self.path_points):
-                    self.path=0
-                    logging.info("path finished")
-                    
+            dist= self.dist(goal.points.tolist(),current)
+            logging.info("[path] gettint to goal pose")
+            self.wait_for_goal(goal.points.tolist(),config.MODE_PATH)
+            logging.info("[path] got to goal pose")
+
     
     def mode_spin(self,omega, height=None):
         
@@ -624,6 +659,9 @@ class OffboardControl(Node):
         while self.mode==config.MODE_SPIN:
             
             yaw = yaw + omega*self.dt
+            yaw = (yaw + np.pi) % (2 * np.pi) - np.pi
+            
+            self.submode = f"yaw: {yaw:.2f}"
             
             self.publish_position_setpoint(
                 self.vehicle_local_position.x,

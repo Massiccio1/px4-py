@@ -46,7 +46,7 @@ import config
 
 
 logging.basicConfig(level=logging.DEBUG)
-GRAPH_SIZE = (100,100)
+GRAPH_SIZE = (150,150)
 TIMESTEP=100
 MAX_IDX=100
 
@@ -81,6 +81,11 @@ class GUI(Node):
             '/fmu/in/trajectory_setpoint',
             self.trajectory_setpoint_callback,
             qos_profile)
+        self.commander_all_sub = self.create_subscription(
+            CommanderAll,
+            '/com/out/all',
+            self.commander_all_callback,
+            qos_profile)
 
         self.commander_arm_pub= self.create_publisher(
             CommanderArm, '/com/in/arm', qos_profile)
@@ -100,6 +105,7 @@ class GUI(Node):
         self.last_pad=0#per il pempo tra trasmisioni
         
         self.max_error=0
+        self.path_loaded = []
         # #busy loop
         # while True:
         #     adad=0
@@ -128,9 +134,9 @@ class GUI(Node):
 
     def window_thread(self):
         
-        # x_graph = lastx = lasty = 0
+        x_graph = lastx = lasty = 0
         # #one time config
-        # g1=self.window['graph_1']
+        g1=self.window['graph_hb']
         # g2=self.window['graph_2']
         
         # self.X = deque()
@@ -158,24 +164,24 @@ class GUI(Node):
                 break
             
             #redraw graphs
-            # step_size = values['graph_speed']
-            # scale = values['graph_scale']
+            step_size = 3
+            scale = 1
+            y_graph=randint(0,GRAPH_SIZE[1])
+            #y_graph=max(self.pose_error()*scale/100 +10, GRAPH_SIZE[1]-10)
+            #y_graph2=self.pose_error()*scale/100 +10
             
-            # y_graph=self.pose_error()*scale/100 +10
-            # y_graph2=self.pose_error()*scale/100 +10
+            scale_line=g1.draw_line((0, self.max_error*scale/100 +10),(GRAPH_SIZE[0], self.max_error*scale/100 +10), width = 1)
+            g1.DrawLine((0, 10), (GRAPH_SIZE[0]+step_size, 10), width=1)
             
-            # scale_line=g1.draw_line((0, self.max_error*scale/100 +10),(GRAPH_SIZE[0], self.max_error*scale/100 +10), width = 1)
-            # g1.DrawLine((0, 10), (GRAPH_SIZE[0], 10), width=1)
-            
-            # #y_graph = randint(0,GRAPH_SIZE[1])*scale/100        # get random point for graph
-            # if x_graph < GRAPH_SIZE[0]:               # if still drawing initial width of graph
-            #     g1.DrawLine((lastx, lasty), (x_graph, y_graph), color="red", width=2)
-            # else:                               # finished drawing full graph width so move each time to make room
-            #     g1.Move(-step_size, 0)
-            #     g1.draw_line((lastx, lasty), (x_graph, y_graph), color="red", width=2)
-            #     x_graph -= step_size
-            # lastx, lasty = x_graph, y_graph
-            # x_graph += step_size
+            #y_graph = randint(0,GRAPH_SIZE[1])*scale/100        # get random point for graph
+            if x_graph < GRAPH_SIZE[0]:               # if still drawing initial width of graph
+                g1.DrawLine((lastx, lasty), (x_graph, y_graph), color="red", width=2)
+            else:                               # finished drawing full graph width so move each time to make room
+                g1.Move(-step_size, 0)
+                g1.draw_line((lastx, lasty), (x_graph, y_graph), color="red", width=2)
+                x_graph -= step_size
+            lastx, lasty = x_graph, y_graph
+            x_graph += step_size
             
             # if error_buffer:
 
@@ -241,7 +247,7 @@ class GUI(Node):
                     False:"green",
                     True: "red"
                 }
-                gui_progress=0
+                gui_progress=""
                 
                 error_buffer.append(self.pose_error())
                 if len(error_buffer)>100:  #10 secondi di errore
@@ -252,7 +258,6 @@ class GUI(Node):
                 now = self.now()
                 diff = (now-self.last_heartbeat)//1000#milliseconds
                 
-                gui_progress+=1
                 
                 # logging.info("new elta hr\n-------------------")
                 # logging.info(self.last_heartbeat)
@@ -265,53 +270,57 @@ class GUI(Node):
                     com_stat="commander: CONNECTED"
                     color_stat = "green"
                 unknown_color="DimGrey"
-                gui_progress+=1
+                gui_progress="pre try"
                 try:
                     self.window["commander_status"].update(com_stat)
                     self.window["commander_status"].update(background_color=color_stat)
-                    gui_progress+=1
+                    gui_progress="old ms check"
                     if not self.old_msg(self.vehicle_status):
                         
                         self.window["arm_text"].update(dict_arm[self.vehicle_status.arming_state])
                         self.window["arm_text"].update(background_color=dict_arm_color[self.vehicle_status.arming_state])
-                        gui_progress+=1
+                        gui_progress="failsafe"
                         self.window["failsafe_text"].update(dict_failsafe[self.vehicle_status.failsafe])
                         self.window["failsafe_text"].update(background_color=dict_color_failsafe[self.vehicle_status.failsafe])
-                        gui_progress+=1
+                        gui_progress="preflight"
                         self.window["preflight_text"].update(dict_preflight[self.vehicle_status.pre_flight_checks_pass])
                         self.window["preflight_text"].update(background_color=dict_color_preflight[self.vehicle_status.pre_flight_checks_pass])
                     else:
                         self.window["arm_text"].update("drone: UNKNOWN")
                         self.window["arm_text"].update(background_color=unknown_color)
-                        gui_progress+=1
                         self.window["failsafe_text"].update("failsafe: UNKNOWN")
                         self.window["failsafe_text"].update(background_color=unknown_color)
-                        gui_progress+=1
                         self.window["preflight_text"].update("preflight checks: UNKNOWN")
                         self.window["preflight_text"].update(background_color=unknown_color)
-                        gui_progress+=1
                     if not self.old_msg(self.failsafe, verbose=True):
+                        gui_progress="offboard"
                         self.window["offboard_text"].update(dict_offboard[self.failsafe.offboard_control_signal_lost])
                         self.window["offboard_text"].update(background_color=dict_color_offboard[self.failsafe.offboard_control_signal_lost])
                     else:
                         self.window["offboard_text"].update("offboard: UNKNOWN")
                         self.window["offboard_text"].update(background_color=unknown_color)
-                    gui_progress+=1
+                    gui_progress="tab"
+                    
                   
                     self.window["tab_lp"].update(self.parse_vlp())
                     self.window["tab_status"].update(self.parse_status())
+                    gui_progress="mode"
+                    
+                    self.window["mode_text"].update("\t"+config.mode_dict[self.commander_all.mode])
+                    self.window["submode_text"].update(""+self.commander_all.submode)
+                    gui_progress="battery"
                     self.window["tab_battery"].update(self.parse_battery())
                     self.window["bar_battery"].update(current_count=self.parse_battery_level())
                     self.window["battery_text"].update(str(self.parse_battery_level())+"%")
                     #elf.window["tab_gps"].update(self.parse_gps())
                     gui_progress+=1
                 except:
-                    logging.error("error updating gui")
-                    logging.error(gui_progress)
+                    # logging.error("error updating gui")
+                    # logging.error(gui_progress)
                     asdasd=1
                 
         
-            elif event== "arm_button":
+            if event== "arm_button":
                 logging.info("arm button pressed")
                 self.arm()
                 
@@ -337,7 +346,7 @@ class GUI(Node):
                 
             
             elif event== "mode_button":
-                logging.info("confirm mode button pressed with value: ",values)
+                logging.info("confirm mode button pressed")
                 self.changeMode(values)
                 
                 
@@ -354,16 +363,19 @@ class GUI(Node):
                 #logging.info("pad pressed")
                 self.manual(event,values)
                 
-            elif event== "file_load":
+            if event== "file_load":
                 path = self.load_path(values)
                 if path:
                     #self.window["table_path"].update(num_rows=len(path))
                     self.window["table_path"].update(visible=True)
                     self.window["table_path"].update(values=path)
+                    self.path_loaded = path
                     
             else:
                 # A timeout signals that all buttons have been released so clear the status display
-                logging.debug(event)
+                #logging.debug(event)
+                sasdasd=0
+                
                 
             
 
@@ -372,6 +384,9 @@ class GUI(Node):
         self.exit=True
         #_thread.interrupt_main()
         exit(0)
+    
+    def commander_all_callback(self,msg):
+        self.commander_all=msg
     
     def vehicle_local_position_callback(self, vehicle_local_position):
         """Callback function for vehicle_local_position topic subscriber."""
@@ -499,32 +514,44 @@ class GUI(Node):
         if values["rd_none"]:
             msg.mode=config.MODE_NONE
 
-        if values["rd_routine"]:
+        elif values["rd_routine"]:
             msg.mode=config.MODE_ROUTINE
             msg.f1=values["omega"]
             msg.f2=values["radius"]
             msg.f3=-values["height"]
             
-        if values["rd_path"]:
+        elif values["rd_path"]:
             msg.mode=config.MODE_PATH
-            msg.points=self.path_to_ros2(self.window["table_path"].Values).points
-            
-        if values["rd_spin"]:
+            if self.path_loaded:
+                msg.points=self.path_to_ros2(self.path_loaded).points
+            else:
+                logging.error("path emptys")
+                
+        elif values["rd_spin"]:
             msg.mode = config.MODE_SPIN
             msg.f1=values["spin_speed"]
             msg.f2=-values["height"]
             
-        if values["rd_updown"]:
+        elif values["rd_updown"]:
             msg.mode = config.MODE_UPDOWN
             
-        if values["rd_goto"]:
-            msg.mode = config.MODE_GOTO
-            msg.fa1=[
+        elif values["rd_goto"]:
+            try:
+                msg.mode = config.MODE_GOTO
+                print("in goto")
+                msg.fa1=[
+                    float(values["x"]),
+                    float(values["y"]),
+                    float(values["z"])
+                ]
                 
-            ]
-            ##todo yaw & time
-            #msg.f1= yaaw
-            #msg.f2 time
+                print("goto msg:",msg)
+                ##todo yaw & time
+                #msg.f1= yaw
+                #msg.f2 time
+            except:
+                logging.error("errro parsing goto message")
+                return -1
         
         self.commander_mode_pub.publish(msg)
         logging.info("sent change mode command")
@@ -799,8 +826,8 @@ class GUI(Node):
             h2=self.setpoint_position_yaw
         
             dist=np.array([x1,y1,z1,h1])    -   np.array([x2,y2,z2,h2])
-            logging.debug("dist xyzh")
-            logging.debug(dist)
+            #logging.debug("dist xyzh")
+            #logging.debug(dist)
             
             return dist
         except:

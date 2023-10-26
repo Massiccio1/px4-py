@@ -9,7 +9,17 @@ MODE_PATH=4
 MODE_UPDOWN=5
 MODE_STOP=6
 
-dist_threshold=0.2
+mode_dict={
+    MODE_NONE: "None",
+    MODE_ROUTINE: "Routine",
+    MODE_SPIN: "Spin",
+    MODE_GOTO: "Goto",
+    MODE_PATH: "Path",
+    MODE_UPDOWN: "Updown",
+    MODE_STOP: "Stop"
+    }
+
+dist_threshold=0.3
 #circle procedure
 dt = 0.1
 theta = 0.0
@@ -21,10 +31,7 @@ pose=0
 tic=0
 
 #mode, only one
-routine=False
-path =False
-spin=True
-updown=False
+mode = MODE_ROUTINE
 #path procedure
 path_points=[0.0, 0.0, 0.0]
 path_index = -1
