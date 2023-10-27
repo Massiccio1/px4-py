@@ -181,9 +181,9 @@ class OffboardControl(Node):
         self.mode = msg.mode
         mode_dict={
             config.MODE_NONE: lambda: self.mode_none(),
-            config.MODE_ROUTINE: lambda: self.mode_routine(msg.f1, msg.f2,msg.f3),
+            config.MODE_ROUTINE: lambda: self.mode_routine(msg.f1, msg.f2,msg.f3,movement_speed=msg.f4),
             config.MODE_SPIN: lambda: self.mode_spin(msg.f1,msg.f2),
-            config.MODE_GOTO: lambda: self.mode_goto(msg.fa1,msg.f1,msg.f2),
+            config.MODE_GOTO: lambda: self.mode_goto(msg.fa1,movement_speed=msg.f4),
             config.MODE_PATH: lambda: self.mode_path(msg.points),
             config.MODE_UPDOWN: lambda: self.mode_updown(),
             config.MODE_STOP: lambda: self.mode_stop()
@@ -486,7 +486,7 @@ class OffboardControl(Node):
         logging.info("MODE: none")
         return 0
 
-    def mode_routine(self, omega, radius, height=None, theta=0):
+    def mode_routine(self, omega, radius, height=None, theta=0, movement_speed=0.7):
     #if self.ready and self.routine:
     
         logging.info("MODE: routine")
@@ -510,6 +510,7 @@ class OffboardControl(Node):
             prefix="goto start ",
             verbose=True,
             time_t=dist #1m/s
+            
         )
         logging.info("got to start, now routining")
         while self.mode==config.MODE_ROUTINE:

@@ -519,11 +519,13 @@ class GUI(Node):
             msg.f1=values["omega"]
             msg.f2=values["radius"]
             msg.f3=-values["height"]
+            msg.f4=-values["movement_speed"]
             
         elif values["rd_path"]:
             msg.mode=config.MODE_PATH
             if self.path_loaded:
                 msg.points=self.path_to_ros2(self.path_loaded).points
+                msg.f4=-values["movement_speed"]
             else:
                 logging.error("path emptys")
                 
@@ -544,8 +546,9 @@ class GUI(Node):
                     float(values["y"]),
                     float(values["z"])
                 ]
+                msg.f4=-values["movement_speed"]
                 
-                print("goto msg:",msg)
+                #print("goto msg:",msg)
                 ##todo yaw & time
                 #msg.f1= yaw
                 #msg.f2 time

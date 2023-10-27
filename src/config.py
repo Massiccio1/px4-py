@@ -57,3 +57,4 @@ log=logging.INFO
 ############################################
 #opti-to-px4
 opti_to_px4_dt=0.02 #50 hz
+movement_speed=0.7

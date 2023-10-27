@@ -61,9 +61,20 @@ class gui_layout:
         ]
         
         mode = [
-            [sg.Radio('spin', 1, key = "rd_spin"), sg.Radio('routine', 1, key= "rd_routine"),sg.Radio('goto', 1, key = "rd_goto"),sg.Radio('path',  1, key = "rd_path"),sg.Radio('updown', 1, key = "rd_updown"),sg.Radio('None', 1, key="rd_none",default=True)],
-            [sg.Text("\nheight"),sg.Slider((1.0,20.0), key="height",default_value=2.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size),
-             sg.Text("\nspin speed"),sg.Slider((0,slid.max_range), key="spin_speed",default_value=1.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size)],
+            [
+                sg.Radio('spin', 1, key = "rd_spin"), 
+                sg.Radio('routine', 1, key= "rd_routine"),
+                sg.Radio('goto', 1, key = "rd_goto"),
+                sg.Radio('path',  1, key = "rd_path"),
+                sg.Radio('updown', 1, key = "rd_updown"),
+                sg.Radio('None', 1, key="rd_none",default=True)
+            ],
+            [
+                sg.Text("\nheight"),
+                sg.Slider((1.0,20.0), key="height",default_value=2.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size),
+                sg.Text("\nspin speed"),
+                sg.Slider((0,slid.max_range), key="spin_speed",default_value=1.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size)
+            ],
             [sg.Text("\nradius"),sg.Slider((0,slid.max_radius), key="radius",default_value=2.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size),
             sg.Text("\nomega"),sg.Slider((0,slid.max_omega), key="omega",default_value=1.0, resolution=slid.resolution, orientation=slid.orientation, s=slid.size)],
             [
@@ -74,12 +85,17 @@ class gui_layout:
                 sg.Input(key='y',size=(4,2)),
                 sg.Text("Z:"),
                 sg.Input(key='z',size=(4,2)),
+                sg.Text("(NED frame)")
             ],
             [
                 sg.Text("Chose a path file"),
                 sg.Input(key='file_input',s=(20,1)),
                 sg.FileBrowse(file_types=(("JSON Files", "*.json"), ("ALL Files", "*.*"),),key="file_browser"),
                 sg.Button("Load", key="file_load")
+            ],
+            [
+                sg.Text("\nmovement speed"),
+                sg.Slider((0.0,10.0), key="movement_speed",default_value=0.7, resolution=slid.resolution, orientation=slid.orientation, s=slid.size),
             ],
             
             [sg.Button('Confirm', key="mode_button")],
