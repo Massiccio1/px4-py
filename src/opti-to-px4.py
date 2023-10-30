@@ -91,9 +91,9 @@ class Converter(Node):
         p = [xyz.x,xyz.z, -xyz.y] #z with - for NED
         
         qt=self.pose.pose.orientation
-        qt=self.pose.pose.orientation
+        #qt=self.pose.pose.orientation
         
-        q=[qt.x,qt.y,qt.z,qt.w]
+        q=[qt.w,qt.x,qt.y,qt.z]
         msg.pose_frame=1 #NED frame
         msg.velocity_frame=1 #NED frame
         msg.position=p

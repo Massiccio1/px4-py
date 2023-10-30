@@ -177,13 +177,14 @@ class OffboardControl(Node):
         #         self.vehicle_local_position.heading
         #     )
             
-        
+                    #config.MODE_GOTO: lambda: self.mode_goto(msg.fa1,movement_speed=msg.f4),
+
         self.mode = msg.mode
         mode_dict={
             config.MODE_NONE: lambda: self.mode_none(),
             config.MODE_ROUTINE: lambda: self.mode_routine(msg.f1, msg.f2,msg.f3,movement_speed=msg.f4),
             config.MODE_SPIN: lambda: self.mode_spin(msg.f1,msg.f2),
-            config.MODE_GOTO: lambda: self.mode_goto(msg.fa1,movement_speed=msg.f4),
+            config.MODE_GOTO: lambda: self.mode_goto(msg.fa1),
             config.MODE_PATH: lambda: self.mode_path(msg.points),
             config.MODE_UPDOWN: lambda: self.mode_updown(),
             config.MODE_STOP: lambda: self.mode_stop()
@@ -345,7 +346,7 @@ class OffboardControl(Node):
         self.arm()
         self.ready=False
     
-    def goto_func(self,xyz,yaw=None,speed=None,time=None):
+    def goto_func(self,xyz,yaw=None,speed=None,time=None, movement_speed=None):
         print("todo goto")
         # if yaw == None:
         #     yaw = self.vehicle_local_position.heading
@@ -357,7 +358,7 @@ class OffboardControl(Node):
         t.start()
             
         
-    def goto_thread(self,xyz,yaw,time_t,blank=None):
+    def goto_thread(self,xyz,yaw,time_t,blank=None,movement_speed=None):
         sersdf=0
         return 0
     
@@ -366,6 +367,7 @@ class OffboardControl(Node):
         
         self.ready = False
         
+        #if self.vehicle_local_position.z > self.takeoff_height: #NED frame
         if self.vehicle_local_position.z > self.takeoff_height: #NED frame
         
             self.publish_position_setpoint(self.vehicle_local_position.x,self.vehicle_local_position.y,self.takeoff_height,self.vehicle_local_position.heading)
@@ -509,7 +511,7 @@ class OffboardControl(Node):
             mode=config.MODE_ROUTINE,
             prefix="goto start ",
             verbose=True,
-            time_t=dist #1m/s
+            time_t=dist, #1m/s
             
         )
         logging.info("got to start, now routining")
@@ -539,7 +541,8 @@ class OffboardControl(Node):
                   time_t=None,
                   mode=config.MODE_GOTO,
                   verbose=True,
-                  prefix=""):
+                  prefix="",
+                  movement_speed=None):
         self.mode_goto([x,y,z],yaw,time_t,mode,verbose,prefix)
         
     def mode_goto(self,xyz:list,
@@ -547,7 +550,8 @@ class OffboardControl(Node):
                   time_t=None,
                   mode=config.MODE_GOTO,
                   verbose=True,
-                  prefix=""):
+                  prefix="",
+                  movement_speed=None):
         logging.info("MODE: goto")
         self.submode = "0%"
         
