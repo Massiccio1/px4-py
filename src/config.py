@@ -46,7 +46,7 @@ spin_rad=0.05
 ##flight config
 #relative, negative means up (NED frame)
 #absolute with optitrack, negative means up (NED frame)
-takeoff_height = -2.0
+takeoff_height = -1.4
 cruising_speed = 0.5
 
 #gui

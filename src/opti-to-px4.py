@@ -88,12 +88,17 @@ class Converter(Node):
         msg.timestamp_sample = int(self.get_clock().now().nanoseconds / 1000)
         
         xyz = self.pose.pose.position
-        p = [xyz.x,xyz.z, -xyz.y] #z with - for NED
+        p = [xyz.x, xyz.z, -xyz.y] #z with - for NED
         
         qt=self.pose.pose.orientation
         #qt=self.pose.pose.orientation
         
-        q=[qt.w,qt.x,qt.y,qt.z]
+        q=[
+            qt.w,
+            qt.x,
+            qt.z,
+            -qt.y
+        ]
         msg.pose_frame=1 #NED frame
         msg.velocity_frame=1 #NED frame
         msg.position=p
