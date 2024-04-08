@@ -31,7 +31,7 @@ pose=0
 tic=0
 
 #mode, only one
-mode = MODE_ROUTINE
+mode = 0
 #path procedure
 path_points=[0.0, 0.0, 0.0]
 path_index = -1

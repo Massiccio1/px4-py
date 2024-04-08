@@ -410,6 +410,12 @@ class OffboardControl(Node):
         self.publish_commander()
         self.tic+=1
 
+
+
+        # print(self.ready)
+        # print(self.gui)
+        # print("-"*20)
+        
         if not self.gui and self.offboard_setpoint_counter == 10:
             self.vehicle_start()
             # self.routine = 0

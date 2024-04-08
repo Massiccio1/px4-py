@@ -1,3 +1,10 @@
+
+"""
+Sends heartbeat to px4 companion to keep it alive
+"""
+
+
+
 import rclpy
 
 from rclpy.node import Node

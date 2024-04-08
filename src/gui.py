@@ -167,7 +167,13 @@ class GUI(Node):
             step_size = 3
             scale = 1
             y_graph=randint(0,GRAPH_SIZE[1])
-            #y_graph=max(self.pose_error()*scale/100 +10, GRAPH_SIZE[1]-10)
+            y_graph=self.pose_error()*scale*(GRAPH_SIZE[1]-20)/0.9
+            
+            print(self.pose_error())
+            print(y_graph)
+            
+            print("-"*20)
+            
             #y_graph2=self.pose_error()*scale/100 +10
             
             scale_line=g1.draw_line((0, self.max_error*scale/100 +10),(GRAPH_SIZE[0], self.max_error*scale/100 +10), width = 1)
@@ -649,7 +655,7 @@ class GUI(Node):
         dyaw*=speed_2
         
         
-        print(f"\ndx {dx}\ndy {dy}")
+        print(f"\ndx {dx}\ndy {dy}\ndz: {dz}")
         
         
         x2 = x1 + np.cos(yaw1)*dx + np.sin(-yaw1)*dy
@@ -657,12 +663,14 @@ class GUI(Node):
         z2 = z1 + dz
         yaw2 = yaw1 + dyaw
         yaw2 = (yaw2 + np.pi) % (2 * np.pi) - np.pi #-pi;+pi
-
-        print("yaw: ",yaw2)
-        print(f"\nx1 {x1}\ny1 {y1}n")
-        print(f"x2 {x2}\ny2 {y2}")
-
         
+        print(f"\nspeed1 {speed_1}\nspeed2 {speed_2}")
+        print(f"\ndx {dx}\ndy {dy}\ndz: {dz}")
+        print("yaw: ",yaw2)
+        print(f"\nx1 {x1}\ny1 {y1}\nz1 {z1}")
+        print(f"x2 {x2}\ny2 {y2}\nz2 {z2}")
+
+        print("-"*20)
         
         # logging.debug("yaws")
         # logging.debug(yaw1)
