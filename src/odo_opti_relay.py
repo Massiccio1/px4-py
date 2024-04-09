@@ -44,12 +44,23 @@ class MinimalSubscriber(Node):
 
     
     def vehicle_odometry_callback(self, msg):
+        
+        new_msg = VehicleOdometry()     
+           
+        new_msg.timestamp = self.now()
+        new_msg.position=msg.position
+        new_msg.q = msg.q
+        new_msg.pose_frame = msg.pose_frame
+        
+        
         self.odometry_publisher.publish(msg)
         self.v_odometry_publisher.publish(msg)
         
         print(f"relayed message {self.count}")
         self.count+=1
-
+        
+    def now(self):
+        return int(self.get_clock().now().nanoseconds / 1000)
 
 def main(args=None):
     rclpy.init(args=args)
