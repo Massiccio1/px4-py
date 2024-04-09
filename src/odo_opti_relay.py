@@ -14,10 +14,16 @@ from px4_msgs.msg import VehicleOdometry
 
 import time
 
+
+
+
+
 class MinimalSubscriber(Node):
 
     def __init__(self):
         super().__init__('odo_relay')
+        
+        self.cout = 0
         
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -41,7 +47,8 @@ class MinimalSubscriber(Node):
         self.odometry_publisher.publish(msg)
         self.v_odometry_publisher.publish(msg)
         
-        print("relayed message")
+        print(f"relayed message {self.count}")
+        self.cout+=1
 
 
 def main(args=None):
