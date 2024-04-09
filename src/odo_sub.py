@@ -10,10 +10,9 @@ from rclpy.node import Node
 from std_msgs.msg import String
 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleAttitudeSetpoint
-from commander_msg.msg import CommanderAll, CommanderArm, CommanderMode, CommanderAction
-from std_msgs.msg import Float64MultiArray
+from px4_msgs.msg import VehicleOdometry
 
+import time
 
 class MinimalSubscriber(Node):
 
@@ -28,28 +27,21 @@ class MinimalSubscriber(Node):
         )
 
         # Create publishers
-        self.offboard_control_mode_publisher = self.create_publisher(
-            OffboardControlMode, '/fmu/in/offboard_control_mode', qos_profile)
-        self.trajectory_setpoint_publisher = self.create_publisher(
-            TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos_profile)
-        self.vehicle_command_publisher = self.create_publisher(
-            VehicleCommand, '/fmu/in/vehicle_command', qos_profile)
-        
-        self.com_pub_all = self.create_publisher(
-            CommanderAll, '/com/out/all', qos_profile)
-        self.com_pub_mode = self.create_publisher(
-            CommanderMode, '/com/out/mode', qos_profile)
-
-            
+        self.odometry_publisher= self.create_publisher(
+            VehicleOdometry, '/fmu/in/vehicle_mocap_odometry', qos_profile)
+        self.v_odometry_publisher= self.create_publisher(
+            VehicleOdometry, '/fmu/in/vehicle_visual_odometry', qos_profile)
         # Create subscribers
-        self.vehicle_local_position_subscriber = self.create_subscription(
-            VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_local_position_callback, qos_profile)
-        self.vehicle_status_subscriber = self.create_subscription(
-            VehicleStatus, '/fmu/out/vehicle_status', self.vehicle_status_callback, qos_profile)
+        self.vehicle_odometry_subscriber = self.create_subscription(
+            VehicleOdometry, '/fmu/out/vehicle_odometry', self.vehicle_odometry_callback, qos_profile)
         
 
-    def listener_callback(self, msg):
-        self.get_logger().info('I heard: "%s"' % msg.data)
+    
+    def vehicle_odometry_callback(self, msg):
+        self.odometry_publisher.publish(msg)
+        self.v_odometry_publisher.publish(msg)
+        
+        print("relayed message")
 
 
 def main(args=None):

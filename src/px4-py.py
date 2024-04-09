@@ -666,6 +666,9 @@ class OffboardControl(Node):
             height = self.vehicle_local_position.z
         
         yaw=self.vehicle_local_position.heading
+        
+        fixed_x = self.vehicle_local_position.x
+        fixed_y = self.vehicle_local_position.y
             
         while self.mode==config.MODE_SPIN:
             
@@ -675,8 +678,8 @@ class OffboardControl(Node):
             self.submode = f"yaw: {yaw:.2f}"
             
             self.publish_position_setpoint(
-                self.vehicle_local_position.x,
-                self.vehicle_local_position.y,
+                fixed_x,
+                fixed_y,
                 height,
                 yaw
             )

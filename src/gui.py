@@ -167,12 +167,17 @@ class GUI(Node):
             step_size = 3
             scale = 1
             y_graph=randint(0,GRAPH_SIZE[1])
-            y_graph=self.pose_error()*scale*(GRAPH_SIZE[1]-20)/0.9
+            y_graph=self.pose_error()*scale*(GRAPH_SIZE[1]-20)/2
             
-            print(self.pose_error())
-            print(y_graph)
+            if(y_graph>GRAPH_SIZE[1]-10):
+                y_graph=GRAPH_SIZE[1]-10
+            if(y_graph<10):
+                y_graph=10
             
-            print("-"*20)
+            # print(self.pose_error())
+            # print(y_graph)
+            
+            # print("-"*20)
             
             #y_graph2=self.pose_error()*scale/100 +10
             
@@ -298,7 +303,7 @@ class GUI(Node):
                         self.window["failsafe_text"].update(background_color=unknown_color)
                         self.window["preflight_text"].update("preflight checks: UNKNOWN")
                         self.window["preflight_text"].update(background_color=unknown_color)
-                    if not self.old_msg(self.failsafe, verbose=True):
+                    if not self.old_msg(self.failsafe, verbose=False):
                         gui_progress="offboard"
                         self.window["offboard_text"].update(dict_offboard[self.failsafe.offboard_control_signal_lost])
                         self.window["offboard_text"].update(background_color=dict_color_offboard[self.failsafe.offboard_control_signal_lost])
@@ -425,16 +430,19 @@ class GUI(Node):
     
     def old_msg(self,msg,verbose=False):
         
-        return False
+        # return False
         
         now = self.now()
         diff = (now-msg.timestamp)//1000#milliseconds
         
-        logging.info("new msg\n-------------------")
-        logging.info(msg.timestamp)
-        logging.info(now)
-        logging.debug("difference")
-        logging.debug(diff)
+        if verbose:
+        
+            logging.info("new msg\n-------------------")
+            logging.info(msg.timestamp)
+            logging.info(now)
+            logging.debug("difference")
+            logging.debug(diff)
+            
         if diff<2000:#2 secondi arbitrari
             
             return False
@@ -670,7 +678,7 @@ class GUI(Node):
         print(f"\nx1 {x1}\ny1 {y1}\nz1 {z1}")
         print(f"x2 {x2}\ny2 {y2}\nz2 {z2}")
 
-        print("-"*20)
+        print("manual-"*20)
         
         # logging.debug("yaws")
         # logging.debug(yaw1)
