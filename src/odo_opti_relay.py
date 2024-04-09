@@ -17,7 +17,7 @@ import time
 class MinimalSubscriber(Node):
 
     def __init__(self):
-        super().__init__('odo subscriber')
+        super().__init__('odo_relay')
         
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
