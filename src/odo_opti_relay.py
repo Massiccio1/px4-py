@@ -23,7 +23,7 @@ class MinimalSubscriber(Node):
     def __init__(self):
         super().__init__('odo_relay')
         
-        self.cout = 0
+        self.count = 0
         
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -48,7 +48,7 @@ class MinimalSubscriber(Node):
         self.v_odometry_publisher.publish(msg)
         
         print(f"relayed message {self.count}")
-        self.cout+=1
+        self.count+=1
 
 
 def main(args=None):
