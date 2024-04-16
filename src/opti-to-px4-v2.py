@@ -3,6 +3,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from px4_msgs.msg import VehicleOdometry, OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleAttitudeSetpoint
 from geometry_msgs.msg import PoseStamped
+from mocap_interfaces.msg import RigidBodies, RigidBody
 from rclpy import qos
 
 
@@ -47,7 +48,7 @@ class Converter(Node):
         self.vehicle_odometry_subscriber = self.create_subscription(
             VehicleOdometry, '/fmu/out/vehicle_odometry', self.vehicle_odometry_callback, qos_profile)
         self.optitrack_subscriber= self.create_subscription(
-            PoseStamped, '/optiTrack/pose', self.optitrack_pose_callback, qos.qos_profile_sensor_data)
+            RigidBodies, "/mocap/rigid_bodies", self.optitrack_pose_callback, qos.qos_profile_sensor_data)
 
         # Initialize variables
         self.offboard_setpoint_counter = 0
@@ -73,7 +74,18 @@ class Converter(Node):
     def optitrack_pose_callback(self, msg):
         """Callback function for optitrack pose"""
         logging.debug("recived pose")
-        self.pose = msg
+
+            
+        if(len(msg.rigid_bodies)<1):
+            print("no bodies found....")
+            return
+        
+        if(len(msg.rigid_bodies)>1):
+            print(f"optitack found {len(msg.rigid_bodies)} bodies, publishing only the first")
+            
+        
+            
+        self.pose = msg.rigid_bodies[0].pose_stamped
         self.sub_pose = self.sub_pose + 1
 
 

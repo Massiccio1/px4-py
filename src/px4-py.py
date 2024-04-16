@@ -504,7 +504,8 @@ class OffboardControl(Node):
             #altezza attuale
         traj_x = radius * np.cos(theta)
         traj_y = radius * np.sin(theta)
-        base = [traj_x,traj_y,height]
+        traj_z = height
+        base = [traj_x,traj_y,traj_z]
         current = [
                 self.vehicle_local_position.x,
                 self.vehicle_local_position.y,
@@ -520,6 +521,7 @@ class OffboardControl(Node):
             time_t=dist, #1m/s
             
         )
+        
         logging.info("got to start, now routining")
         while self.mode==config.MODE_ROUTINE:
             traj_x = radius * np.cos(theta)
