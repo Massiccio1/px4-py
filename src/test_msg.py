@@ -3,7 +3,6 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from px4_msgs.msg import VehicleOdometry, OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleAttitudeSetpoint
 from geometry_msgs.msg import PoseStamped
-from mocap_interfaces.msg import RigidBodies, RigidBody
 from rclpy import qos
 
 
