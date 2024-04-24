@@ -40,7 +40,8 @@ class Converter(Node):
 
     def vehicle_odometry_callback(self, msg):
         """Callback function for vehicle odometry"""
-        logging.debug("recived odometry")
+        # logging.debug("recived odometry")
+        print("odo")
 
 
     def vlp(self, msg):
