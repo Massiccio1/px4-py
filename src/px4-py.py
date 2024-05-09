@@ -644,7 +644,6 @@ class OffboardControl(Node):
             prefix="goto start ",
             verbose=True,
             time_t=dist/movement_speed, 
-            
         )
         self.submode = "routine"
         logging.info("got to start, now routining")
@@ -741,8 +740,8 @@ class OffboardControl(Node):
             
             time.sleep(self.dt)
         
-        # logging.info ("[goto] wait for goal")
-        # self.wait_for_goal(xyz, self.mode)
+        logging.info ("[goto] wait for goal")
+        self.wait_for_goal(xyz, self.mode)
         
         logging.info("end of goto")
         

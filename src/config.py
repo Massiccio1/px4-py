@@ -21,7 +21,7 @@ mode_dict={
     MODE_LAND: "Landing"
     }
 
-dist_threshold=0.3
+dist_threshold=0.4
 #circle procedure
 dt = 0.1
 theta = 0.0
