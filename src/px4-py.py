@@ -4,7 +4,7 @@ import json
 import math
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleAttitudeSetpoint
+from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus, VehicleLandDetected
 from commander_msg.msg import CommanderAll, CommanderArm, CommanderMode, CommanderAction
 from std_msgs.msg import Float64MultiArray
 
@@ -78,6 +78,8 @@ class OffboardControl(Node):
             VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_local_position_callback, qos_profile)
         self.vehicle_status_subscriber = self.create_subscription(
             VehicleStatus, '/fmu/out/vehicle_status', self.vehicle_status_callback, qos_profile)
+        self.landing_subscriber = self.create_subscription(
+            VehicleLandDetected, '/fmu/out/vehicle_land_detected', self.vehicle_landing_callback, qos_profile)
         
         self.commander_arm_sub = self.create_subscription(
             CommanderArm, '/com/in/arm', self.commander_arm_callback, qos_profile)
@@ -108,6 +110,28 @@ class OffboardControl(Node):
     def vehicle_status_callback(self, vehicle_status):
         """Callback function for vehicle_status topic subscriber."""
         self.vehicle_status = vehicle_status
+        
+    def vehicle_landing_callback(self, vehicle_land):
+        """Callback function for vehicle_land topic subscriber."""
+        # print(vehicle_land)
+        # print(self.vehicle_land is not None)
+        try:
+            # if(self.vehicle_land is not None):
+            if self.vehicle_land.freefall != vehicle_land.freefall:
+                logging.info(f"freefal changed from: {self.vehicle_land.freefall} to {vehicle_land.freefall}")
+            if self.vehicle_land.ground_contact != vehicle_land.ground_contact:
+                logging.info(f"ground_contact changed from: {self.vehicle_land.ground_contact} to {vehicle_land.ground_contact}")
+            if self.vehicle_land.maybe_landed != vehicle_land.maybe_landed:
+                logging.info(f"maybe_landed changed from: {self.vehicle_land.maybe_landed} to {vehicle_land.maybe_landed}")
+            if self.vehicle_land.landed != vehicle_land.landed:
+                logging.info(f"landed changed from: {self.vehicle_land.landed} to {vehicle_land.landed}")
+            if self.vehicle_land.has_low_throttle != vehicle_land.has_low_throttle:
+                logging.info(f"has_low_throttle changed from: {self.vehicle_land.has_low_throttle} to {vehicle_land.has_low_throttle}")
+        except:
+            pass
+        # print(vehicle_land.landed)
+
+        self.vehicle_land = vehicle_land
 
     def arm(self):
         """Send an arm command to the vehicle."""
@@ -187,7 +211,8 @@ class OffboardControl(Node):
             config.MODE_GOTO: lambda: self.mode_goto(msg.fa1),
             config.MODE_PATH: lambda: self.mode_path(msg.points),
             config.MODE_UPDOWN: lambda: self.mode_updown(),
-            config.MODE_STOP: lambda: self.mode_stop()
+            config.MODE_STOP: lambda: self.mode_stop(),
+            config.MODE_LAND: lambda: self.mode_land(msg.fa1)
         }
         
         mode_dict[msg.mode]()
@@ -272,11 +297,23 @@ class OffboardControl(Node):
         
         if yaw==None:
             yaw = self.find_yaw(x,y,self.vehicle_local_position.x,self.vehicle_local_position.y)
-        
+        #shortest direcction
+        dir = self.closest_turn(self.vehicle_local_position.heading, yaw)
+
+        # logging.info("dir: ")
+        # logging.info(dir)
+
+
+        # thr = 0.1
+
+        # if dir - self.vehicle_local_position.heading> thr:
+        #     yaw = self.vehicle_local_position.heading + thr
+        # if dir - self.vehicle_local_position.heading< thr:
+        #     yaw = self.vehicle_local_position.heading - thr
+
+
         msg = TrajectorySetpoint()
         msg.position = [x, y, z]
-        msg.yaw = 1.57079  # (90 degree)
-        msg.yaw = 0.0
         # msg.yaw = self.tic*1.0
         msg.yaw = yaw
         #msg.yawspeed = yawspeed
@@ -294,7 +331,13 @@ class OffboardControl(Node):
         #self.publish_position_setpoint(0.0,0.0,-1.0,msg.yaw)
     
     def find_yaw(self,x1,y1,x2,y2):
-        return -np.arctan2(x2-x1,y2-y1)-np.pi/2
+        #NED coordinates
+        tmp_yaw =  -np.arctan2(x2-x1,y2-y1)-np.pi/2
+        if tmp_yaw<-np.pi:
+            tmp_yaw += np.pi*2
+        if tmp_yaw>np.pi:
+            tmp_yaw -= np.pi*2
+        return tmp_yaw
 
     def publish_vehicle_command(self, command, **params) -> None:
         """Publish a vehicle command."""
@@ -346,22 +389,6 @@ class OffboardControl(Node):
         self.arm()
         self.ready=False
     
-    def goto_func(self,xyz,yaw=None,speed=None,time=None, movement_speed=None):
-        print("todo goto")
-        # if yaw == None:
-        #     yaw = self.vehicle_local_position.heading
-        if speed == None or speed==0.0:
-            speed=5
-        if time == None or time==0.0:
-            time=5
-        t=threading.Thread(target=self.goto_thread,args=(xyz,yaw,speed,time))
-        t.start()
-            
-        
-    def goto_thread(self,xyz,yaw,time_t,blank=None,movement_speed=None):
-        sersdf=0
-        return 0
-    
     def takeoff(self):
         logging.info("taking off")
         
@@ -384,7 +411,28 @@ class OffboardControl(Node):
         # print("p1: ",t1)
         # print("p2: ",t2)
         return math.dist(t1, t2)
-    
+    def closest_turn(self,yaw1, yaw2):
+        # yaw1=yaw1/360*np.pi*2
+        # yaw2=yaw2/360*np.pi*2
+
+        #module so it's [-2pi, 2pi]
+        yaw1 = np.fmod(yaw1, np.pi*2)
+        yaw2 = np.fmod(yaw2, np.pi*2)
+
+        # -30deg becomes 330deg
+        if yaw1<0:
+            yaw1 += np.pi*2
+        if yaw2<0:
+            yaw2 += np.pi*2
+
+        diff=yaw2-yaw1
+        dir = diff
+
+        if np.abs(diff)>np.pi:
+            dir = np.pi*2-diff
+        # return dir/np.pi/2*360
+        return dir
+
     def vlp_to_array(self, vlp:VehicleLocalPosition):
         #print(vlp)
         return [vlp.x,vlp.y,vlp.z]
@@ -488,13 +536,84 @@ class OffboardControl(Node):
                 self.vehicle_local_position.heading
             )
         return 0
+    
+    def mode_land(self, base):
+        logging.info("MODE: land")
+        logging.info(f"request to land at: {base[0]} : {base[1]}")
+
+        self.submode = ""
+
+        height = self.vehicle_local_position.z
+            #altezza attuale
+
+        base = [base[0],base[1],self.vehicle_local_position.z]
+        current = [
+                self.vehicle_local_position.x,
+                self.vehicle_local_position.y,
+                self.vehicle_local_position.z
+                ]
+        dist = self.dist(base,current)
+        
+        self.mode_goto(
+            base,
+            mode=config.MODE_LAND,
+            prefix="go base ",
+            verbose=True,
+            time_t=dist*5, #1m/s
+        )
+
+        yaw = self.vehicle_local_position.heading
+        #sono sopra
+        term = False
+        lt = False
+        self.submode = "discending"
+
+        pos_log=[]
+        pos_log_size = 10
+
+        while not term and self.mode==config.MODE_LAND:
+            print("in landing procedure")
+
+            self.publish_position_setpoint(
+                base[0],
+                base[1],
+                self.vehicle_local_position.z  + 0.1                                                                          ,
+                yaw
+                #5 cm alla volta
+            )
+
+
+            if self.vehicle_land.has_low_throttle:
+                print("low throttle")
+                lt = True
+            else:
+                lt = False
+            if lt:
+                pos_log.append(self.vehicle_local_position.z)
+                pos_log = pos_log[-pos_log_size:]
+                if len(pos_log) == pos_log_size:
+                    if np.abs(self.vehicle_local_position.z - pos_log[-1]) < 0.01:
+                        print("detected as landed")
+                        term = True
+            else:
+                pos_log = []
+            if self.vehicle_land.ground_contact:
+                term = True
+            time.sleep(0.5)
+
+        self.publish_vehicle_command(
+            VehicleCommand.VEHICLE_CMD_DO_FLIGHTTERMINATION,
+            param1=1.0
+        )
+        logging.info("landed")
+        return 0    
         
     
     def mode_none(self):
         logging.info("MODE: none")
         return 0
 
-    def mode_routine(self, omega, radius, height=None, theta=0, movement_speed=0.7):
+    def mode_routine(self, omega, radius, height=None, theta=0, movement_speed=0.4):
     #if self.ready and self.routine:
     
         logging.info("MODE: routine")
@@ -512,16 +631,22 @@ class OffboardControl(Node):
                 self.vehicle_local_position.z
                 ]
         dist = self.dist(base,current)
-        
+
+        final_yaw = self.find_yaw(radius * np.cos(theta+0.1), radius * np.sin(theta+0.1), traj_x, traj_y)
+        # final_yaw = middle_yaw - np.pi/2
+
+        logging.info(f"gt of rtn: from: {self.vehicle_local_position.heading} - to {final_yaw}")
+
         self.mode_goto(
             base,
+            yaw = final_yaw,
             mode=config.MODE_ROUTINE,
             prefix="goto start ",
             verbose=True,
-            time_t=dist, #1m/s
+            time_t=dist/movement_speed, 
             
         )
-        
+        self.submode = "routine"
         logging.info("got to start, now routining")
         while self.mode==config.MODE_ROUTINE:
             traj_x = radius * np.cos(theta)
@@ -549,8 +674,7 @@ class OffboardControl(Node):
                   time_t=None,
                   mode=config.MODE_GOTO,
                   verbose=True,
-                  prefix="",
-                  movement_speed=None):
+                  prefix=""):
         self.mode_goto([x,y,z],yaw,time_t,mode,verbose,prefix)
         
     def mode_goto(self,xyz:list,
@@ -558,15 +682,14 @@ class OffboardControl(Node):
                   time_t=None,
                   mode=config.MODE_GOTO,
                   verbose=True,
-                  prefix="",
-                  movement_speed=None):
+                  prefix=""):
         logging.info("MODE: goto")
         self.submode = "0%"
         
         if time_t==0.0 or time_t==None:
             time_t=5
         if yaw==None:
-            yaw = self.find_yaw(xyz[0],xyz[2],self.vehicle_local_position.x,self.vehicle_local_position.y)
+            yaw = self.find_yaw(xyz[0],xyz[1],self.vehicle_local_position.x,self.vehicle_local_position.y)
 
         #print("xyz: ",xyz)
         delta = np.array([xyz[0]-self.vehicle_local_position.x,  
@@ -696,14 +819,10 @@ class OffboardControl(Node):
         logging.info("MODE: updown")
         self.land()
         logging.info("end of updown")
+
     
     def test(self):
-        target =np.array([
-            self.vehicle_local_position.x+random.randint(-5,5),
-            self.vehicle_local_position.y+random.randint(-5,5),
-            self.vehicle_local_position.z-random.randint(-10,10)/10
-        ])
-        self.goto_func(target)
+        logging.info("todo test button")
         
 
 def main(args=None) -> None:

@@ -8,6 +8,7 @@ MODE_GOTO=3
 MODE_PATH=4
 MODE_UPDOWN=5
 MODE_STOP=6
+MODE_LAND=7
 
 mode_dict={
     MODE_NONE: "None",
@@ -16,7 +17,8 @@ mode_dict={
     MODE_GOTO: "Goto",
     MODE_PATH: "Path",
     MODE_UPDOWN: "Updown",
-    MODE_STOP: "Stop"
+    MODE_STOP: "Stop",
+    MODE_LAND: "Landing"
     }
 
 dist_threshold=0.3

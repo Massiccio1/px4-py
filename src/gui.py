@@ -39,6 +39,8 @@ from commander_msg.msg import CommanderAll, CommanderPathPoint ,CommanderArm, Co
 # from collections import deque
 
 from random import randint
+import random
+
 import logging
 import threading, _thread
 from threading import Event
@@ -339,12 +341,7 @@ class GUI(Node):
             elif event== "disarm_button":
                 logging.info("disarm button pressed")
                 self.disarm()
-                
-                
-            elif event== "disarm_button":
-                logging.info("disarm button pressed")
-                self.disarm()
-                
+                                
             
             elif event== "takeoff_button":
                 logging.info("takeoff button pressed")
@@ -366,8 +363,9 @@ class GUI(Node):
                 
             elif event== "btn_force_disarm":
                 self.force_disarm()
+
             elif event== "btn_test":
-                self.test()
+                self.test(values)
             
             #
             elif "pad" in event:
@@ -524,6 +522,7 @@ class GUI(Node):
         # msg.ready=True
         # if values["rd_none"]:
         #     msg.ready=False
+
         
         if values["rd_none"]:
             msg.mode=config.MODE_NONE
@@ -533,13 +532,13 @@ class GUI(Node):
             msg.f1=values["omega"]
             msg.f2=values["radius"]
             msg.f3=-values["height"]
-            msg.f4=-values["movement_speed"]
+            msg.f4=values["movement_speed"]
             
         elif values["rd_path"]:
             msg.mode=config.MODE_PATH
             if self.path_loaded:
                 msg.points=self.path_to_ros2(self.path_loaded).points
-                msg.f4=-values["movement_speed"]
+                msg.f4=values["movement_speed"]
             else:
                 logging.error("path emptys")
                 
@@ -550,6 +549,7 @@ class GUI(Node):
             
         elif values["rd_updown"]:
             msg.mode = config.MODE_UPDOWN
+
             
         elif values["rd_goto"]:
             try:
@@ -560,7 +560,7 @@ class GUI(Node):
                     float(values["y"]),
                     float(values["z"])
                 ]
-                msg.f4=-values["movement_speed"]
+                msg.f4=values["movement_speed"]
                 
                 #print("goto msg:",msg)
                 ##todo yaw & time
@@ -569,6 +569,10 @@ class GUI(Node):
             except:
                 logging.error("errro parsing goto message")
                 return -1
+        else:
+            logging.error("unknown mode activated")
+            print(values)
+        
         
         self.commander_mode_pub.publish(msg)
         logging.info("sent change mode command")
@@ -853,8 +857,31 @@ class GUI(Node):
         except:
             return np.array([0.0,0.0,0.0,0.0])
     
-    def test(self):
-        self.action("test")
+    def test(self, values):
+        """todo test = land random"""
+        # self.action("test")
+        #hardcoded -1 1, -1 1   
+        print("in test callback")
+        msg = CommanderMode()
+        msg.timestamp = self.now()
+        
+        msg.mode = config.MODE_LAND
+
+        # nx = random.random()*2 -1
+        # ny = random.random()*2 -1
+
+        nx = self.vehicle_local_position.x
+        ny = self.vehicle_local_position.y
+
+        msg.fa1=[
+            nx,
+            ny,
+            0.0,
+        ]
+      
+        self.commander_mode_pub.publish(msg)
+        logging.info("sent change mode command")
+
     
     def end(self):
         rclpy.spin(self)
