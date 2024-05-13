@@ -56,18 +56,18 @@ class OffboardControl(Node):
 
         # Configure QoS profile for publishing and subscribing
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=1
-        )
-        #qos for ehartbeat that MUST reach the drone
-        qos_hb = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             history=HistoryPolicy.KEEP_LAST,
             depth=1
         )
+        #qos for ehartbeat that MUST reach the drone
+        # qos_hb = QoSProfile(
+        #     reliability=ReliabilityPolicy.BEST_EFFORT,
+        #     durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        #     history=HistoryPolicy.KEEP_LAST,
+        #     depth=1
+        # )
 
         # Create publishers
         self.offboard_control_mode_publisher = self.create_publisher(
