@@ -51,6 +51,9 @@ class OffboardControl(Node):
         
         self.gui = config.gui
 
+        #tmp var for debugging
+        self.tmp=0
+
         # Configure QoS profile for publishing and subscribing
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -264,6 +267,13 @@ class OffboardControl(Node):
 
     def publish_offboard_control_heartbeat_signal(self):
         """Publish the offboard control mode."""
+        
+        t = time.time()
+
+        diff = t -self.tmp
+        self.tmp = t
+        logging.info(f"diff in timing: {diff}")
+
         msg = OffboardControlMode()
         msg.position = True
         msg.velocity = False
