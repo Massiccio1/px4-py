@@ -567,7 +567,7 @@ class OffboardControl(Node):
         height = self.vehicle_local_position.z
             #altezza attuale
 
-        base = [base[0],base[1],self.vehicle_local_position.z]
+        base = [base[0],base[1],height]
         current = [
                 self.vehicle_local_position.x,
                 self.vehicle_local_position.y,
@@ -580,7 +580,7 @@ class OffboardControl(Node):
             mode=config.MODE_LAND,
             prefix="go base ",
             verbose=True,
-            time_t=dist*5, #1m/s
+            time_t=dist*5, #0.2m/s
         )
 
         yaw = self.vehicle_local_position.heading
