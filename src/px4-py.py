@@ -272,7 +272,8 @@ class OffboardControl(Node):
 
         diff = t -self.tmp
         self.tmp = t
-        logging.info(f"diff in timing: {diff}")
+        if diff > 0.2:
+            logging.info(f"diff in timing: {diff}")
 
         msg = OffboardControlMode()
         msg.position = True
