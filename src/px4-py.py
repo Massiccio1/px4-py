@@ -499,7 +499,9 @@ class OffboardControl(Node):
         if self.offboard_setpoint_counter < 11:
             self.offboard_setpoint_counter += 1
             
-    def wait_for_goal(self,goal:list, mode):
+    def wait_for_goal(self,goal:list, mode):     
+
+        thr = config.dist_threshold
         current = [
             self.vehicle_local_position.x,
             self.vehicle_local_position.y,
@@ -508,7 +510,7 @@ class OffboardControl(Node):
         
         dist= self.dist(goal,current)
         self.distance = dist
-        while dist > config.dist_threshold and self.mode == mode: #non acora arrivato a destinazione
+        while dist > thr and self.mode == mode: #non acora arrivato a destinazione
             current = [
                 self.vehicle_local_position.x,
                 self.vehicle_local_position.y,
@@ -519,6 +521,7 @@ class OffboardControl(Node):
             self.distance = dist
             logging.info("distance:")
             logging.info(dist)
+            thr +=0.2  #cm each tic
             time.sleep(self.dt)
         if dist <= config.dist_threshold:
             logging.info("destination reached")

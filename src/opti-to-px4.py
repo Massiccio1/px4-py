@@ -25,6 +25,7 @@ class Converter(Node):
         self.pubs=0
         self.sub_odo=0
         self.sub_pose=0
+        self.new = False
         
         self.dt=config.opti_to_px4_dt
         
@@ -75,6 +76,7 @@ class Converter(Node):
         logging.debug("recived pose")
         self.pose = msg
         self.sub_pose = self.sub_pose + 1
+        self.new = True
 
 
 
@@ -82,6 +84,9 @@ class Converter(Node):
         """Publish the mocap odometry"""
         
         logging.debug("publishing mocap")
+
+        if not self.new:
+            return 0
         
         msg = VehicleOdometry()
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
@@ -116,6 +121,7 @@ class Converter(Node):
         self.v_odometry_publisher.publish(msg)
         
         self.pubs = self.pubs + 1
+        self.new = False
 
     def timer_callback(self) -> None:
         if self.ready:
