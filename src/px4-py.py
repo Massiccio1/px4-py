@@ -586,6 +586,7 @@ class OffboardControl(Node):
         yaw = self.vehicle_local_position.heading
         #sono sopra
         term = False
+        #low throtle
         lt = False
         self.submode = "discending"
 
@@ -613,6 +614,7 @@ class OffboardControl(Node):
                 pos_log.append(self.vehicle_local_position.z)
                 pos_log = pos_log[-pos_log_size:]
                 if len(pos_log) == pos_log_size:
+                    #if not moved in the last 5 seconds even when promped to go down
                     if np.abs(self.vehicle_local_position.z - pos_log[-1]) < 0.01:
                         print("detected as landed")
                         term = True
@@ -712,10 +714,13 @@ class OffboardControl(Node):
             yaw = self.find_yaw(xyz[0],xyz[1],self.vehicle_local_position.x,self.vehicle_local_position.y)
 
         #print("xyz: ",xyz)
+
+        deltayaw = self.closest_turn(self.vehicle_local_position.heading, yaw)
+
         delta = np.array([xyz[0]-self.vehicle_local_position.x,  
                           xyz[1]-self.vehicle_local_position.y, 
                           xyz[2]-self.vehicle_local_position.z,
-                          yaw-self.vehicle_local_position.heading
+                          deltayaw
                          ])
         
         start=np.array([
