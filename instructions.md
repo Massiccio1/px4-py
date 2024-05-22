@@ -66,7 +66,7 @@ The command `r2path1000`, alias for `RVIZ_MAX_BUFFER=1000 ros2 launch px4_offboa
 
 ### Docker companion
 
-`dockerdrone` alias for .... #TODO\
+`dockerdrone` alias for `docker run -it --network host --device /dev/ttyS2 -v $HOME/shared:/root/shared drone-companion:main-squash`
 launches the companion container with all programs
 
 # build instructions
@@ -81,11 +81,25 @@ Always source ROS2 files (alias `s`)
   git clone https://github.com/Massiccio1/px4-py.git
   git clone https://github.com/Massiccio1/optitrack_interface.git
   git clone https://github.com/Massiccio1/px4-offboard.git
-  git clone https://github.com/Massiccio1/px4-22.git
   git clone https://github.com/PX4/px4_msgs.git
   git clone https://github.com/Massiccio1/commander_msg.git
   ```
 - build for ROS2 with `colcon build --symlink-install --parallel-workers 8` or the alias `ccbsi`
+
+## docker build
+
+- clone the repo: `git clone https://github.com/Massiccio1/px4-22.git`
+
+For all the buids you can use `--squash` is supported, this will reduce disk usage but you will lose the build cache
+
+- build the core image: `cd core && docker build -t drone-core .`
+- build the commander image: `cd commander-squashed && docker build -t drone-commander:main-squash .`
+- build the commander image: `cd companion-squashed && docker build -t drone-companion:main-squash .`
+
+to update an image to the iamges to the latest commit run:
+
+- `cd updatecommander && docker build -t drone-commander:main-squash --squash .`
+- `cd updatecompanion && docker build -t drone-companion:main-squash --squash  .`
 
 # run instructions
 
@@ -102,21 +116,18 @@ run:
 
 run:
 
-- `agentreal` for the XRCE agent (edit /dev/tty based on your board)
-- `TRACKED_ROBOT_ID=44 ros2 run optitrack_interface optitrack` for the optitrack client
+- `sudo MicroXRCEAgent serial --dev /dev/ttyS2 -b 921600` or the alias `agentreal` for the XRCE agent (edit /dev/tty based on your board)
+- `TRACKED_ROBOT_ID=44 ros2 run optitrack_interface optitrack` or the alias `opti` for the optitrack client
 - `px4-py/src/opti-to-px4.py` for converting pose messages to px4 messages
   - alternatively use `TRACKED_ROBOT_ID=44 ros2 run optitrack_interface optitrack2` instead of the prevuois 2 commands
 
 ## Docker
 
-following the bash aliases, run `dockercommander` on the commander computer and `dockerdrone` on the companion
+following the bash aliases, run
 
-### PX4
+- `dockercommander` on the commander computer
+- `dockerdrone` on the companion
 
-Follow the `Installation & Setup` chapter on https://docs.px4.io/main/en/ros/ros2_comm.html#humble
+## versions
 
-## version
-
-## Third Example
-
-## [Fourth Example](http://www.fourthexample.com)
+if versions are incompatible with px4 message use the commit `97191bd60f536b4add2e27e3b2124a375e465e17` from the PX4-Autopilot repo, and copy the messages from there
