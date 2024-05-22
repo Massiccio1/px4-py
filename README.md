@@ -2,7 +2,6 @@
 
 # Table of Contents
 
--
 - [terminology](#terminology)
 - [command and programs](#commands-and-programs)
   1. [px4-py](#px4-pypy)
