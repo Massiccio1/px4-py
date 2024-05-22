@@ -2,7 +2,7 @@
 
 # Table of Contents
 
-- command and programs
+- [command and programs](#commands-and-programs)
   1. [px4-py](#px4-pypy)
   2. [gui](#guipy)
   3. [opti-to-px4.py](#opti-to-px4py)
@@ -12,6 +12,10 @@
   7. [Docker companion](#docker-companion)
 - [Build instructions](#build-instructions)
 - [Run instructions](#run-instructions)
+
+## commands and programs
+
+Used and edit the file `resource/.bash_aliases` to fit your system
 
 ### px4-py.py
 
@@ -62,16 +66,30 @@ The command `r2path1000`, alias for `RVIZ_MAX_BUFFER=1000 ros2 launch px4_offboa
 
 ### Docker companion
 
-`dockerdrone` alias for ....
+`dockerdrone` alias for .... #TODO\
 launches the companion container with all programs
 
 # build instructions
 
-Follow the instructions `Installation & Setup` at https://docs.px4.io/main/en/ros/ros2_comm.html#installation-setup
+Always source ROS2 files (alias `s`)
+
+## general setup
+
+- Follow the instructions `Installation & Setup` at https://docs.px4.io/main/en/ros/ros2_comm.html#installation-setup
+- clone the repositories in the ROS" `src` folder:
+  ```
+  git clone https://github.com/Massiccio1/px4-py.git
+  git clone https://github.com/Massiccio1/optitrack_interface.git
+  git clone https://github.com/Massiccio1/px4-offboard.git
+  git clone https://github.com/Massiccio1/px4-22.git
+  git clone https://github.com/PX4/px4_msgs.git
+  git clone https://github.com/Massiccio1/commander_msg.git
+  ```
+- build for ROS2 with `colcon build --symlink-install --parallel-workers 8` or the alias `ccbsi`
 
 # run instructions
 
-Always source ROS2 files
+Always source ROS2 files (alias `s`)
 
 ## Commander
 
