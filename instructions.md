@@ -2,6 +2,8 @@
 
 # Table of Contents
 
+-
+- [terminology](#terminology)
 - [command and programs](#commands-and-programs)
   1. [px4-py](#px4-pypy)
   2. [gui](#guipy)
@@ -10,10 +12,18 @@
   5. [rviz](#rviz)
   6. [Docker commander](#docker-commander)
   7. [Docker companion](#docker-companion)
+  8. [QGroundControl](#QGroundControl)
 - [Build instructions](#build-instructions)
 - [Run instructions](#run-instructions)
+- [additional resources](#additional-resources)
 
-## commands and programs
+# terminology
+
+- `commander` main computer wrom where the drone takes commands
+- `companion` single board computer that interfaces direcly with the flight controller on the drone, is listening to the commander messages
+- `optitrack` motion capture system, used to detect the drone position
+
+# commands and programs
 
 Used and edit the file `resource/.bash_aliases` to fit your system
 
@@ -69,6 +79,10 @@ The command `r2path1000`, alias for `RVIZ_MAX_BUFFER=1000 ros2 launch px4_offboa
 `dockerdrone` alias for `docker run -it --network host --device /dev/ttyS2 -v $HOME/shared:/root/shared drone-companion:main-squash`
 launches the companion container with all programs
 
+### QGroundControl
+
+Application used to configure the flight controller
+
 # build instructions
 
 Always source ROS2 files (alias `s`)
@@ -96,7 +110,7 @@ For all the buids you can use `--squash` is supported, this will reduce disk usa
 - build the commander image: `cd commander-squashed && docker build -t drone-commander:main-squash .`
 - build the commander image: `cd companion-squashed && docker build -t drone-companion:main-squash .`
 
-to update an image to the iamges to the latest commit run:
+to update an image to the iamges to the latest commit:
 
 - `cd updatecommander && docker build -t drone-commander:main-squash --squash .`
 - `cd updatecompanion && docker build -t drone-companion:main-squash --squash  .`
@@ -107,14 +121,10 @@ Always source ROS2 files (alias `s`)
 
 ## Commander
 
-run:
-
 - `px4-py/src/px4-py.py` for the offboard controller
 - `px4-py/src/px4-py.py` for the gui
 
 ## Companion
-
-run:
 
 - `sudo MicroXRCEAgent serial --dev /dev/ttyS2 -b 921600` or the alias `agentreal` for the XRCE agent (edit /dev/tty based on your board)
 - `TRACKED_ROBOT_ID=44 ros2 run optitrack_interface optitrack` or the alias `opti` for the optitrack client
@@ -127,6 +137,21 @@ following the bash aliases, run
 
 - `dockercommander` on the commander computer
 - `dockerdrone` on the companion
+
+# additional resources
+
+### custom flying parameters
+
+Load the parameters in the `resource` folder into the flight controller using the QGroundControl application, these are set to use an external vision as position esimator, sets the optitrack sensor offset, baudrate on serial comunication, offboard behavior and more
+
+### custom firmware
+
+A custom firmware is used because it's more stable, the new one crashe frequently
+
+- check out the repo to the commit `97191bd60f536b4add2e27e3b2124a375e465e17`
+- edit `$HOME/PX4-Autopilot/src/modules/uxrce_dds_client/dds_topics.yaml` like the one in the `resource` folder, this will include the battery indicator, lad detection
+- get the make command from https://docs.px4.io/main/en/dev_setup/building_px4.html#nuttx-pixhawk-based-boards and run it inside the PX4 folder, for my board it's `make px4_fmu-v6c_default`
+- load the firmware from inside the QGroundControl application
 
 ## versions
 
