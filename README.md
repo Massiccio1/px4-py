@@ -33,7 +33,9 @@ Main process, recives all ross messages from gui and companion, elaborates infor
 ### gui.py
 
 Graphical interface, does not comunicate direcly with the companion.\
-Displays information and relays commands to the commander; it has a few options:
+Displays information and relays commands to the commander
+
+![Gui.py](img/gui.png)
 
 - `ARM` arms the drone if the above contitions are met
 - `DISARM` disarms the drone before it takes off or when it landed, does not work mid flight
@@ -68,6 +70,8 @@ The `TRACKED_ROBOT_ID` tracked robot varable is used to chose the ID of the opti
 
 The command `r2path1000`, alias for `RVIZ_MAX_BUFFER=1000 ros2 launch px4_offboard visualize.launch.py` launches rviz with 2 poses, the big one is the pose of the drone, the small one is the pose from optitrack.\
 `RVIZ_MAX_BUFFER=1000` sets the buffer to the latest 1000 messages recived, this prevents clogging of the iterface and slow down of the system, not setting the varable will keep the complete history
+
+![Gui.py](img/rviz.png)
 
 ### Docker commander
 
@@ -136,6 +140,18 @@ following the bash aliases, run
 
 - `dockercommander` on the commander computer
 - `dockerdrone` on the companion
+
+# simulation
+
+Follow the instructions at https://docs.px4.io/main/en/simulation/
+
+For Ubuntu20 you can use `make px4_sitl gazebo-classic` in the PX4-Autopilot root folder to start the simulation, you can add the enviroment varable `HEADLESS=1` to make it headless without starting the gazebo graphical interface.
+
+To enable the SITL (Software in the loop) you need to run `MicroXRCEAgent udp4 -p 8888` in the MicroXRCEAgent root folder or use the alias `agent`
+
+Now you can start the `px4-py.py` process and eventually the gui
+
+![Gui.py](img/gazebo.png)
 
 # additional resources
 
