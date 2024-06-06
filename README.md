@@ -170,7 +170,26 @@ A custom firmware is used because it's more stable, the new one crashe frequentl
 
 ### companion serial comunication
 
-#todo add boot options to activate serial comunication into resource folder
+The serial comunication between the flight controller and the companion is done with UART serial comunication
+
+For the rockchip 4c board the pin layout can be found at https://wiki.radxa.com/Rock4/hardware/gpio
+
+For the flight controller, view the Pixhawk 6c pin layout here: https://docs.holybro.com/autopilot/pixhawk-6c/pixhawk-6c-ports#telem-2-port
+
+For the connection layout follow this guide, adjusted for your models https://docs.px4.io/main/en/companion_computer/pixhawk_rpi.html
+
+Finally enable the comunication on the QGroudControll app on the `TELEM2` port (should be already set int the param file in resources)
+
+I foud that the baud rate works well on `921600`
+
+### boot options for rockchip 4c
+
+To enable UART interface on rochchip 4c you need to edit `/boot/hw_intfc.conf` as follows:
+
+```
+intfc:uart2=on
+intfc:uart4=on
+```
 
 ## versions
 
